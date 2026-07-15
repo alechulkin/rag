@@ -1,12 +1,12 @@
 # Architecture Options — AI Knowledge Assistant for FinTech Engineering Teams
 
-**Status:** Draft v1.0 (post-BRD, post-NFR, pre-SAD-lock)
+**Status:** Historical analysis (superseded by accepted ADRs in `docs/adr/`)
 **Author:** Solution Architect
 **Source inputs:** [docs/BRD.md](BRD.md) v1.0, [docs/NFR.md](NFR.md) v1.0, [docs/BA_Analysis.md](BA_Analysis.md), [docs/Solution_Architecture.md](Solution_Architecture.md) v0.1
 **Audience:** Product Owner, Engineering Lead, Security/Compliance, Finance
 **Date:** 2026-05-19
 
-> This document compares 2–3 candidate architectures for the MVP and recommends one. The current [Solution_Architecture.md](Solution_Architecture.md) v0.1 is consistent with the recommended option (Option B); the options exercise is captured here for traceability and stakeholder sign-off.
+> This document compares candidate architectures and records historical option analysis. Binding decisions were extracted into accepted ADRs under `docs/adr/`. Keep this file for rationale and trade-off history.
 
 ---
 

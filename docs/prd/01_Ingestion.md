@@ -70,7 +70,7 @@ Allow CONTRIBUTORs and ADMINs in a workspace to upload technical, compliance, an
    - overlap default 120 tokens (0–250).
    - Prefer semantic boundaries (markdown headings, paragraph breaks, PDF page breaks); fallback to fixed-size.
 6. **Embedding.** Provider selected from workspace AI policy. Pre-call validation (region, retention, training, approval). Fail-closed.
-7. **Indexing.** Write chunks + embeddings + vector index entries scoped by `(tenant, workspace, collection, document, version, embedding_profile)`.
+7. **Indexing.** Write chunks + `chunk_embeddings` entries scoped by `(tenant, workspace, collection, document, version, embedding_profile)`.
 8. **Cutover.** New version becomes active and searchable only after successful index of all chunks. Previous version remains active in the meantime.
 
 **Cross-cutting pipeline rules.**
@@ -118,8 +118,8 @@ Allow CONTRIBUTORs and ADMINs in a workspace to upload technical, compliance, an
 
 ## 7. Data Model Touchpoints
 
-- `documents`, `document_versions`, `ingestion_jobs`, `chunks`, `embeddings`, `vector_index`, `audit_events`.
-- New: `embedding_profile_id` foreign key on `chunks`/`embeddings`/`vector_index`.
+- `documents`, `document_versions`, `ingestion_jobs`, `deletion_jobs`, `chunks`, `chunk_embeddings`, `audit_events`.
+- New: `embedding_profile_id` foreign key on `chunks`.
 - New: `ingestion_jobs.dead_letter` (boolean) + `ingestion_jobs.dead_letter_reason` (text), set on retry exhaustion (§5.2.9).
 - New: per-profile `pending_deletes` (or equivalent delete-log) consumed by the reindex builder to satisfy delete-during-reindex propagation (§5.4, SAD §3.2).
 
@@ -155,5 +155,4 @@ Allow CONTRIBUTORs and ADMINs in a workspace to upload technical, compliance, an
 ## 11. Open Items (deferred to architecture)
 
 - Exact chunking algorithm for PDFs with embedded code blocks.
-- Choice between worker pool inside the Spring Boot app vs separate worker process (see SAD).
 - Format of folder-import allow-list (config vs UI-managed).

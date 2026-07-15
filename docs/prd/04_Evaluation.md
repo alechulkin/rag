@@ -70,7 +70,7 @@ Provide a permission-aware evaluation framework that judges quality across the *
 4. Reviewer publishes the case to the golden suite; audit event `eval.golden.promoted`.
 
 ### 5.5 Stale & Disabled Handling
-- When a source document is deleted/replaced (PRD §01 §5.4), dependent cases auto-flag `stale`.
+- When a source document is soft-deleted or replaced (PRD §01 §5.4), dependent cases auto-flag `stale`.
 - Default owners (creator + workspace ADMIN) receive a notification.
 - SLA: review within 14 days. After 30 days unreviewed, auto-`disabled`. Audit recorded.
 
@@ -96,7 +96,7 @@ Provide a permission-aware evaluation framework that judges quality across the *
 
 ## 7. Data Model Touchpoints
 
-- `golden_questions`, `eval_suites`, `eval_runs`, `eval_cases`, `eval_results`, `eval_human_reviews`, `feedback_review_queue`, `audit_events`.
+- `golden_questions`, `eval_suites`, `eval_suite_cases`, `eval_runs`, `eval_results`, `eval_human_reviews`, `feedback`, `audit_events`.
 
 ## 8. APIs (illustrative)
 
@@ -117,7 +117,7 @@ Provide a permission-aware evaluation framework that judges quality across the *
 2. Refusal expectations are enforced: a case expecting refusal that gets an answer is marked `fail` regardless of LLM-judge verdict.
 3. Regression alert fires on a synthetic drop of > 5 pp pass rate and reaches workspace ADMINs.
 4. Promoting feedback to a golden question requires expected-answer and expected-sources fields.
-5. Deleting a source document marks all dependent cases `stale` within the same transaction.
+5. Soft-deleting a source document marks all dependent cases `stale` in the same transaction as the soft-delete action.
 
 ## 11. Open Items
 

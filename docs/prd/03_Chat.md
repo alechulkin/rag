@@ -50,6 +50,7 @@ Provide a grounded conversational interface over a workspace's indexed documents
 1. Validate user + JWT + workspace + scope.
 2. Resolve allowed filter set (tenant, workspace, collections, documents).
 3. Run hybrid retrieval (PRD §02). topK = 8 by default (workspace-configurable 3–20).
+   - MVP does **not** apply conversational query rewriting; retrieval query is the latest user question text.
 4. Apply "I don't know" refusal criterion (BA §7.4.f): zero permitted chunks **or** all top-K below threshold (default cosine 0.55) **or** combined context tokens < 200.
 5. If insufficient → emit refusal answer template + audit `refused.insufficient_context`. End.
 6. If sufficient → resolve provider via workspace AI policy. Pre-call validation (region, retention, training, approval). Fail-closed.
@@ -67,10 +68,8 @@ Provide a grounded conversational interface over a workspace's indexed documents
 - Workspace ADMIN can override the template text.
 
 ### 5.6 Streaming Topologies
-- Two supported topologies (BA §7.4.g):
-  - Cloud default: **React → Node BFF → Spring Boot**.
-  - Local/minimal: **React → Spring Boot SSE** directly.
-- The same streaming protocol (SSE events) is used in both; the BFF is a thin pass-through with AI gateway responsibilities.
+- MVP topology (BA §7.4.g): **React → Spring Boot SSE** directly.
+- SSE event contract: `token`, `citation`, `done`, `error`, `heartbeat`. Reconnect does not resume prior generation; client re-asks.
 
 ### 5.7 Feedback
 - One feedback per `(user, answer)` (BA §7.4.h).

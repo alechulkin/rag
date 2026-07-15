@@ -26,10 +26,6 @@ flowchart LR
     React[React SPA]
   end
 
-  subgraph Edge
-    BFF["Node.js BFF<br/>(streaming, AI gateway,<br/>optional)"]
-  end
-
   subgraph CorePlatform
     API[Spring Boot API]
     Worker[Spring Boot Worker]
@@ -57,9 +53,7 @@ flowchart LR
     Local[Local OpenAI-compatible]
   end
 
-  React --> BFF
   React --> API
-  BFF --> API
   React -- OIDC --> KC
   API -- JWT validate --> KC
   API --> PolicyEngine
@@ -85,7 +79,6 @@ flowchart LR
 ### 2.1 Modules
 
 - **React SPA** — UI for upload, search, chat, admin, observability.
-- **Node.js BFF (optional)** — streaming gateway, frontend-shaped APIs, edge AI integration. Two topologies supported per BA §7.4.g.
 - **Spring Boot API** — request entry, JWT validation, RBAC, scope resolution, REST + SSE endpoints.
 - **Spring Boot Worker** — ingestion pipeline stages (parse → chunk → embed → index), reindex, delete propagation, eval-run executor (or co-deployed eval runner).
 - **Policy Engine** — single authority for: workspace RBAC, ACL resolution, AI-provider pre-call validation, residency check. Returns an `AllowedFilterSet` consumed by retrieval.
@@ -174,7 +167,7 @@ Deletion must propagate to **every** embedding profile, including a profile that
 
 Rule:
 
-- When a document (or version) is deleted while one or more `embedding_profile` index families are **active** or **building**, the deletion is applied to **all** of them. Implementation may either (a) delete directly from each profile's `chunks` / `embeddings` / `vector_index` rows for that document, or (b) append the deletion to a per-profile `pending_deletes` log that the builder must consume.
+- When a document (or version) is deleted while one or more `embedding_profile` index families are **active** or **building**, the deletion is applied to **all** of them. Implementation may either (a) delete directly from each profile's `chunks` / `chunk_embeddings` rows for that document, or (b) append the deletion to a per-profile `pending_deletes` log that the builder must consume.
 - **Cutover is blocked** while a building profile has unconsumed `pending_deletes` for documents that have been removed from the source set. The new profile may be activated only after its pending-delete set is empty (drained).
 - The reindex job records `embedding_profile.created` and `embedding_profile.activated` (BA §7.6.c); a delete during the window additionally records that it was applied to the building profile.
 
@@ -190,29 +183,38 @@ This closes the gap where SAD §3.1 / BA §7.6.c describe parallel profiles and 
 sequenceDiagram
   participant U as Contributor
   participant API as Spring Boot API
-  participant AV as AV Scanner
   participant Obj as Object Storage
   participant W as Worker
+  participant AV as AV Scanner
   participant Pol as Policy Engine
   participant Prov as Embedding Provider
   participant PG as Postgres + pgvector
   participant Aud as Audit
   U->>API: Upload file (multipart, JWT)
   API->>API: Validate auth, MIME, size, hash
-  API->>AV: Scan
-  AV-->>API: Clean
-  API->>Obj: Persist original
-  API->>PG: Insert document + version + ingestion_job
+  API->>Obj: Persist original in pending-av area
+  API->>PG: Insert document + version + ingestion_job(status=pending_av)
   API->>Aud: document.uploaded
   API-->>U: Ack < 2s
-  W->>PG: Dequeue job
-  W->>Obj: Read original
+  W->>PG: Dequeue pending_av job
+  W->>Obj: Read pending-av object
+  W->>AV: Scan
+  AV-->>W: Clean or blocked
+  alt AV blocked
+    W->>Obj: Move to quarantine
+    W->>PG: Mark av_blocked
+    W->>Aud: document.av.blocked
+  else AV clean
+    W->>Obj: Move to primary object area
+    W->>PG: Mark queued and continue
+  end
+  W->>Obj: Read primary object
   W->>W: Parse + chunk
   W->>Pol: Pre-call validate (embedding provider)
   Pol-->>W: Allow
   W->>Prov: Embed chunks (batched)
   Prov-->>W: Embeddings
-  W->>PG: Insert chunks + embeddings + vector_index
+  W->>PG: Insert chunks + chunk_embeddings
   W->>PG: Cutover (mark version active)
   W->>Aud: document.indexed
 ```
@@ -291,7 +293,7 @@ sequenceDiagram
   API->>Aud: document.deleted
   Note over PG: 7-day grace window
   W->>PG: Find documents past grace
-  W->>PG: Delete chunks, embeddings, vector_index, extracted_text
+  W->>PG: Delete chunks, chunk_embeddings, extracted_text
   W->>Obj: Delete original
   W->>PG: Mark dependent golden questions stale
   W->>Aud: document.hard_deleted
@@ -322,8 +324,7 @@ sequenceDiagram
   - **Eval isolation.** Evaluation runs (PRD §04 §6) execute on the worker, not on the API. The eval runner reuses the RAG Orchestrator code but runs in the worker's process/thread pool, subject to a rate-limited provider quota separate from the live-chat quota. A long eval suite must not degrade live chat p95 (PRD §04 §6).
   - **Tenant fairness.** Workers must not let one tenant's queued jobs starve others under a burst (e.g., the NFR §3.9 bulk-onboarding scenario of 500 documents from a single tenant). Default: weighted round-robin across tenants with at least one ready job, bounded by the per-tenant concurrency cap (5 ingestion jobs/tenant, BRD §4.4).
   - **Dead-letter surface.** `ingestion_jobs` carries a `dead_letter` boolean (and `dead_letter_reason`) from the first migration, set when a job exhausts its 3 automatic retries (BRD §4.4). This keeps dead-letter a column read rather than a later schema migration. Streaming/queue-broker DLQ remains roadmap (BRD §5.4); the MVP surface is this column plus the admin ingestion monitor (PRD §01 §5.6).
-- **bff** (optional): Node.js, stateless, terminates SSE for the SPA and proxies to api.
-- **frontend**: React SPA served by static hosting (or by bff).
+- **frontend**: React SPA served by static hosting.
 - **postgres**: **Managed PostgreSQL 16** with pgvector + FTS (Azure Flexible Server Burstable B1ms or AWS RDS db.t4g.micro; ~€12-20/mo in EU). Provides automated daily backup, PITR, managed patching, and TLS, dissolving the backup-orchestration concern entirely. Read replica is **production-launch only** (NFR §6.10 forbids HA replicas at MVP). PG-on-VM is a documented fallback **only** for air-gapped sovereignty deployments; in that case, `pg_basebackup` + WAL archive to a residency-compliant object-storage bucket must be specified as a named work item.
 - **object storage**: MinIO (dev) / S3 / Azure Blob (cloud).
 - **idp**: Keycloak (dev) / Entra ID / Okta (cloud).
@@ -345,14 +346,12 @@ flowchart TB
   API --> LocalAI
 ```
 
-### 6.2 Cloud (target, Kubernetes / managed)
+### 6.2 Cloud (target, managed container platform)
 
 ```mermaid
 flowchart TB
   CDN[CDN / Static Hosting] --> SPA[React SPA]
-  SPA --> BFF[Node.js BFF]
   SPA --> APILB[API Load Balancer]
-  BFF --> APILB
   APILB --> API1[API replica]
   APILB --> API2[API replica]
   API1 --> PG[(Managed PostgreSQL + pgvector)]
@@ -369,6 +368,19 @@ flowchart TB
   Azure[Azure OpenAI EU] --- API1
   Azure --- WorkerPool
 ```
+
+### 6.3 Communication Pattern Matrix
+
+| Interaction | Pattern | Consistency | Retry Owner | Idempotency |
+|---|---|---|---|---|
+| React -> API | Sync REST | Read-your-writes | Client/API | Request-level (safe retries) |
+| API -> Policy | Sync in-process | Strong | API | n/a |
+| API -> PostgreSQL | Sync transactional | Strong | API | n/a |
+| Upload -> Object storage + job row | Sync write + async processing | Strong ack, eventual indexing | API then worker | Content hash + optional idempotency key |
+| API -> Worker | Async DB queue (`SKIP LOCKED`) | Eventual | Worker | Job checkpoint + lease token |
+| Worker -> Embedding provider | Sync outbound | Eventual index build | Worker | Stage-level idempotency |
+| API -> Chat provider | Sync outbound streaming (SSE) | Eventual answer completion | API | Re-ask on failure |
+| Retention/deletion | Scheduled async jobs | Eventual | Worker | Step checkpointing |
 
 ## 7. Cross-Cutting Concerns
 
@@ -425,11 +437,11 @@ Rate limiting protects three different things, each with a different natural enf
 
 **Concern 2 — per-user / per-tenant request rate (abuse prevention).**
 - Needs **resolved JWT identity** (user ID, tenant ID, workspace ID, role). Only the Spring Boot API has this after token validation + permission resolution.
-- **Spring is the source of truth** for this limit in every topology — including BFF-less (React → API direct) and gateway-less.
-- Enforced as a Spring `OncePerRequestFilter` / `HandlerInterceptor` on `/api/auth/*`, `/api/chat`, `/api/search`.
+- **Spring is the source of truth** for this limit in every topology — including gateway-less.
+- Enforced as a Spring `OncePerRequestFilter` / `HandlerInterceptor` on `/api/chat` and `/api/search`.
 - MVP (single replica): **in-memory counters** (e.g., Bucket4j local). Acceptable because there is only one API process.
 - Production (multi-replica): counters move to **Redis** (already listed as optional in SAD §5) or to a **PostgreSQL lightweight counter table** (e.g., sliding-window row per user+endpoint, pruned hourly). Redis is preferred for throughput but remains "never required for correctness" (BRD §5.4) — if Redis is unavailable, the filter falls back to **fail-closed** (deny the request with a 503 + `Retry-After` header) on per-user limits.
-- BFF may perform client-specific throttling or UX smoothing (e.g., debounce rapid chat submissions) but is **never the source of truth** for rate limits.
+- The frontend may perform client-specific UX smoothing (e.g., debounce rapid chat submissions) but is **never the source of truth** for rate limits.
 
 **Concern 3 — per-tenant AI token budget (cost control).**
 - Needs **provider token accounting** — only the backend sees provider responses with token-usage metadata.
@@ -463,7 +475,7 @@ At production launch with 2-10 API replicas (NFR §6.7):
 4. **Admin slice**: collections, ACLs, workspace AI policy editor, provider registry, audit viewer.
 5. **Evaluation slice**: golden Q&A authoring, runner reusing RAG orchestrator, deterministic + LLM-as-judge oracle, dashboard.
 6. **Operational hardening**: append-only audit enforcement, retention purge jobs, notification fallback, soft-delete + four-eyes.
-7. **Cloud topology**: managed Postgres, BFF deployment, secret management, residency configuration.
+7. **Cloud topology**: managed Postgres, secret management, residency configuration.
 
 ## 9. Open Architecture Items
 

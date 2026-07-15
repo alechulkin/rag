@@ -105,7 +105,7 @@ SUPPORTING (infra packages, not domain modules)
 | **Public interface** | `SearchReader`: `hybridSearch`, `ftsOnly` (requires `AllowedFilterSet`). `SearchWriter`: `insertChunksAndVectors`, `deleteByDocument`, `deleteByProfile` (requires `EmbeddingProfile` + tenant context, no filter set). Intentional split — read and write paths have different security contexts (see Shared_Abstractions §6 anti-pattern #3). |
 | **Internal structure** | ArchUnit: no class outside this package may call `EntityManager.createNativeQuery`, pgvector funcs, or `tsvector` funcs (SAD §2.3). |
 | **Dependencies** | → PostgreSQL. |
-| **Reads / Writes** | `chunks`, `embeddings`, `vector_index` (filtered reads; bulk insert from pipeline; delete on hard-delete/reindex). |
+| **Reads / Writes** | `chunks`, `chunk_embeddings` (filtered reads; bulk insert from pipeline; delete on hard-delete/reindex). |
 | **Failure modes** | PG loss → 503 to caller. Query timeout → bounded by `statement_timeout`. Canary in results → P1 alert (permission bypass detected). |
 
 ### `ai.provider` — AI Provider Abstraction (hard-walled)
@@ -132,7 +132,7 @@ SUPPORTING (infra packages, not domain modules)
 | **Internal structure** | **Three sub-packages with an internal wall:** `documents.mgmt` (api profile), `documents.pipeline` (worker profile), `documents.connector`. ArchUnit (from SAD §9.2): no `documents.mgmt` (api) class may import `documents.pipeline` (worker). They communicate only via `ingestion_jobs` rows. Package merge does NOT drop the process-isolation rule. |
 | **Dependencies** | → `ai.provider` (embedding, via `policy.callProvider`), → `search` (write/delete chunks+vectors), → `policy` (authz + provider pre-check), → `objectstorage`, → `audit`, → `evaluation` (stale-flag golden questions on delete). |
 | **Reads** | `documents`, `document_versions`, `collections`, `embedding_profiles`, object storage. |
-| **Writes** | `documents`, `document_versions`, `collections`, `ingestion_jobs`, `chunks`/`embeddings`/`vector_index` (via `search`), object storage areas (pending-av → primary/quarantine). |
+| **Writes** | `documents`, `document_versions`, `collections`, `ingestion_jobs`, `chunks`/`chunk_embeddings` (via `search`), object storage areas (pending-av → primary/quarantine). |
 | **Failure modes** | Dup → no-op + audit. AV positive → `av_blocked` + quarantine. Parse fail → `OCR_REQUIRED`. Embedding outage → retry/dead-letter. Partial chunk write → rollback, no partial visibility. Hard-delete partial failure → resume from `last_completed_step` checkpoint (idempotent steps). Delete-during-reindex → profile set read at execution time, so building profiles are cleaned (SAD §3.2). |
 
 ### `rag` — RAG Orchestrator (domain)
@@ -172,7 +172,7 @@ SUPPORTING (infra packages, not domain modules)
 | **Public interface** | `createGoldenQuestion`, `runSuite(suiteId): EvalRun`, `promoteFromFeedback`, `humanReview`. |
 | **Internal structure** | Each case calls `rag.executeAndCollect(...)` (or `executeRag` with `RagResult.completed`) — same pipeline as live chat, no streaming plumbing in eval. `rag` resolves permissions internally. Oracle consumes `RetrievalTrace` projection from `rag`, not full diagnostics entity. LLM-as-judge via `policy.callProvider()`. |
 | **Dependencies** | → `rag` (pipeline + `PromptRegistry` for judge templates), → `policy` (LLM-as-judge `callProvider` only), → `audit`, → `admin` (Notification for regression alerts). |
-| **Reads / Writes** | `golden_questions`, `eval_suites`, `eval_cases`, `eval_runs`, `eval_results`, `eval_human_reviews`. |
+| **Reads / Writes** | `golden_questions`, `eval_suites`, `eval_suite_cases`, `eval_runs`, `eval_results`, `eval_human_reviews`. |
 | **Failure modes** | Provider down → case `SKIPPED`, run partial. Source deleted → case auto-`stale`. Regression → notify. All skipped → run `INCOMPLETE`. |
 
 ### `admin` — Tenant/Workspace/RBAC + Notification (domain)
@@ -368,7 +368,6 @@ Honest framing: these are contradictions *between spec documents*, not shipped-c
 | **Separate Maven module per logical module (v1 implicit)** | Premature/harmful. 15 jars = build hell for a small team. | One Gradle module; logical walls via ArchUnit. |
 | **`EmbeddingProfile` multi-active-profile runtime** | Forward-compat schema is fine; over-engineering the runtime is not. | Keep schema. Test single profile; verify parallel-profile logic in the ingestion benchmark gate (SAD §9.1). |
 | **Redis at MVP** | Unnecessary. Single API replica → in-memory cache + rate counters suffice. | Not in MVP Docker Compose. Add at multi-replica production (SAD §7.8). |
-| **Node.js BFF as a logic-bearing module** | Optional deploy unit, not a module. | No domain logic in BFF; SSE proxy only. |
 
 ---
 

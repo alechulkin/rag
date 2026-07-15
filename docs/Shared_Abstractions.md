@@ -64,7 +64,7 @@ These cross at least one package boundary. Shared = imported by 2+ packages. Eac
 | **Fields** | `profileId: UUID`, `provider: String`, `model: String`, `dimensions: int`, `normalization: String`, `status: enum(BUILDING, ACTIVE, DEPRECATED)`, `createdAt: Instant`, `activatedAt: Instant?`. |
 | **Invariants** | Exactly one profile is `ACTIVE` per `(tenant, workspace)` at any time. `BUILDING` profiles receive writes but not search queries. `dimensions` is immutable after creation. |
 | **Lifecycle** | Created on embedding-model change → `BUILDING` → `ACTIVE` on cutover → `DEPRECATED` when replaced. |
-| **Serialization** | Persisted as DB row. Referenced by FK on `chunks`, `embeddings`, `vector_index`. |
+| **Serialization** | Persisted as DB row. Referenced by FK on `chunks`, `chunk_embeddings`. |
 | **Security sensitivity** | Low. No user data. |
 | **Versioning risk** | Medium. Adding a new embedding provider may require new fields (e.g., `maxInputTokens`). Extend-only. |
 

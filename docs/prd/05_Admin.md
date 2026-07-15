@@ -87,7 +87,7 @@ Provide ADMINs with the tools to onboard tenants, workspaces, users, collections
   - Streaming support.
   - Embedding dimensions.
   - Authentication method (managed identity, API key in secret store).
-  - Approval status (`approved` / `pending` / `rejected`).
+  - Approval status (`approved` / `pending` / `revoked`).
   - Cross-border transfer flag.
 - Platform Admin can add / approve / revoke. Revoking a provider deactivates dependent workspace policies until the workspace ADMIN chooses an alternative.
 

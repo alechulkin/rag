@@ -44,7 +44,8 @@ Hard rules (BRD §2.2, §5.4):
 - Manage workspace settings / users / role assignments / collections: **ADMIN**.
 - Upload / version / reindex / delete documents: **CONTRIBUTOR**, **ADMIN**.
 - Create / edit golden questions, run evaluations: **CONTRIBUTOR**, **ADMIN**.
-- Search / chat over permitted content: **USER**, **CONTRIBUTOR**, **ADMIN**.
+- Search over permitted content: **VIEWER**, **USER**, **CONTRIBUTOR**, **ADMIN**.
+- Chat over permitted content: **USER**, **CONTRIBUTOR**, **ADMIN**.
 - Read documents / citations: **VIEWER**, **USER**, **CONTRIBUTOR**, **ADMIN**.
 - View audit logs cross-tenant: **ADMIN** with `platform:admin`. Per-workspace: **ADMIN** (workspace-scoped) and **VIEWER** with `audit:read` capability. Indexing/eval logs only: **CONTRIBUTOR**. Own activity history: **USER**.
 - Configure workspace AI policy: **ADMIN**. Provider registry approval: **ADMIN** with `platform:admin`.
@@ -311,7 +312,7 @@ On document delete:
 - **[CLARIFICATION NEEDED] 6.4.d** Default chat scope (workspace? last-used collection?) and how user changes it.
 - **[CLARIFICATION NEEDED] 6.4.e** "Session" definition for short conversation memory: time window, browser session, explicit conversation thread? Memory turn limit / token cap?
 - **[CLARIFICATION NEEDED] 6.4.f** Criterion that triggers "I don't know" refusal (min retrieval count? similarity threshold? confidence?).
-- **[CLARIFICATION NEEDED] 6.4.g** Whether streaming is mandatory or feature-flagged; behavior when Node BFF is not deployed.
+- **[CLARIFICATION NEEDED] 6.4.g** Whether streaming is mandatory or feature-flagged; behavior when SSE is unavailable (client/proxy/environment constraints).
 - **[CLARIFICATION NEEDED] 6.4.h** Feedback workflow: can users edit/withdraw feedback? One per answer per user, or multi?
 
 ### 6.5 Evaluation
@@ -345,7 +346,6 @@ On document delete:
 ### 6.9 Internal Consistency Issues in the BRD
 - **[CLARIFICATION NEEDED] 6.9.a** Role list inconsistency: §2.1 names five roles + an "Auditor" referenced in §2.5; MVP commits to four.
 - **[CLARIFICATION NEEDED] 6.9.b** §2.5 audit visibility table distinguishes Platform Admin vs Workspace Admin, but §2.1 says the split is post-MVP.
-- **[CLARIFICATION NEEDED] 6.9.c** BFF described as "optional" but §7 sequence diagram and §3.3 streaming requirements imply it.
 
 ---
 
@@ -378,7 +378,7 @@ On document delete:
 - **7.3.a — Hard max sizes (MVP).** PDF 50 MB, MD/TXT 10 MB. Larger uploads rejected at validation. Configurable per tenant by Platform Admin.
 - **7.3.b — Duplicate handling.** Within `(workspace, collection, document.name)`: if content hash matches the active version, return the existing document (`no-op`) with an audit event `document.upload.duplicate_ignored`. If content hash matches an older version, treat as restore (new version pointing to existing object). Across different document names: independent documents.
 - **7.3.c — Scanned PDFs.** Detect at parse stage: if extracted text below 200 characters AND extracted-character density < 0.1 chars/KB, fail with `OCR_REQUIRED` reason. Image-only MIME types rejected upfront.
-- **7.3.d — Antivirus.** Required. ClamAV-compatible scanner runs synchronously before ack. Positive detection → quarantine bucket, audit event `document.av.blocked`, no further processing.
+- **7.3.d — Antivirus.** Required. **Superseded by async AV gate in PRD 01 / SAD:** scan runs as first worker stage after durable upload to pending-av storage. Positive detection → quarantine bucket, audit event `document.av.blocked`, no further processing.
 - **7.3.e — Chunking parameters.** Implementation detail with the following **business constraints** (workspace-configurable by ADMIN within bounds):
   - Default chunk size: 800 tokens. Min 200, max 1500.
   - Default overlap: 120 tokens. Min 0, max 250.
@@ -398,7 +398,7 @@ On document delete:
   - (b) all top-K chunks below similarity threshold (default cosine 0.55, workspace-configurable 0.4–0.8), OR
   - (c) total retrieved-context token count below 200.
   Refusal is a templated answer with a help link, an audit-logged outcome `refused.insufficient_context`, and a "submit feedback" affordance.
-- **7.4.g — Streaming / BFF.** Streaming is **mandatory** in MVP. Two supported topologies: (i) React → Node BFF → Spring Boot (recommended for cloud); (ii) React → Spring Boot Server-Sent Events directly (recommended for local/minimal deployments). PRD and SAD must document both.
+- **7.4.g — Streaming (SSE).** Streaming is **mandatory** in MVP via **React → Spring Boot SSE** direct. If SSE is unavailable in a client/proxy environment, the system may fall back to non-streaming responses behind a feature flag (with TTFT and UX degradation recorded in observability).
 - **7.4.h — Feedback workflow.** One feedback per `(user, answer)`. User may edit within 24 h; locked thereafter. No deletion. Feedback rows are immutable after lock and feed evaluation set via the promotion workflow (7.5.d).
 
 ### 7.5 Evaluation (resolves §6.5)
@@ -459,7 +459,6 @@ On document delete:
 
 - **7.9.a — Canonical MVP roles.** `ADMIN`, `CONTRIBUTOR`, `USER`, `VIEWER`. "Auditor / Compliance Viewer" use cases handled by VIEWER + `audit:read` capability until the dedicated role lands.
 - **7.9.b — Pre-split audit visibility.** ADMIN is workspace-scoped by default. The `platform:admin` capability extends ADMIN to all tenants/workspaces for audit and configuration. Audit-log read by non-ADMIN roles requires `audit:read` capability.
-- **7.9.c — BFF topology.** MVP supports both topologies (see 7.4.g). Default cloud deployment includes the Node BFF; local dev deployment runs without it. PRD and SAD must document both paths explicitly.
 
 ---
 

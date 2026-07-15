@@ -75,7 +75,7 @@ Provide fast, permission-aware semantic and keyword search over a workspace's in
 
 ## 7. Data Model Touchpoints
 
-- Read-only against `chunks`, `embeddings`, `vector_index`, `documents`, `document_versions`, `collections`, `access_policies`.
+- Read-only against `chunks`, `chunk_embeddings`, `documents`, `document_versions`, `collections`, `access_policies`.
 
 ## 8. APIs (illustrative)
 
