@@ -316,7 +316,7 @@ CREATE INDEX idx_collections_workspace_status ON collections(workspace_id, statu
 | **Owner module** | `documents` (mgmt) |
 | **PK** | `id UUID` |
 | **FKs** | `collection_id → collections(id)`, `workspace_id → workspaces(id)` |
-| **Key columns** | `name`, `mime_type`, `content_hash`, `active_version_id`, `deleted_at` |
+| **Key columns** | `name`, `mime_type`, `content_hash`, `tags`, `active_version_id`, `deleted_at` |
 | **Indexes** | `(workspace_id, collection_id, name)`, `(workspace_id, content_hash)`, `(deleted_at) WHERE deleted_at IS NOT NULL` (partial for hard-delete job) |
 | **Tenant isolation** | Via `workspace_id` |
 | **Retention** | Soft-delete 7 days → hard-delete |
@@ -331,6 +331,7 @@ CREATE TABLE documents (
     name TEXT NOT NULL,
     mime_type TEXT NOT NULL,
     content_hash TEXT NOT NULL,
+    tags TEXT[] NOT NULL DEFAULT '{}',
     size_bytes BIGINT NOT NULL,
     active_version_id UUID,  -- FK added after document_versions created
     deleted_at TIMESTAMPTZ,
@@ -343,6 +344,7 @@ CREATE TABLE documents (
 CREATE INDEX idx_documents_workspace_collection ON documents(workspace_id, collection_id, name);
 CREATE INDEX idx_documents_content_hash ON documents(workspace_id, content_hash);
 CREATE INDEX idx_documents_deleted ON documents(deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX idx_documents_tags ON documents USING GIN(tags);
 ```
 
 ---
@@ -400,9 +402,9 @@ ALTER TABLE documents ADD CONSTRAINT fk_active_version
 | **Purpose** | Keys index families. Enables zero-downtime embedding model migration. |
 | **Owner module** | `admin` (registry), `documents` (writes), `search` (reads) |
 | **PK** | `id UUID` |
-| **FKs** | `tenant_id → tenants(id)` |
+| **FKs** | `tenant_id → tenants(id)`, `workspace_id -> workspaces(id)` |
 | **Key columns** | `provider`, `model`, `dimensions`, `status` |
-| **Indexes** | `(tenant_id, status)` |
+| **Indexes** | `(tenant_id, workspace_id, status)`, partial unique active-profile index |
 | **Tenant isolation** | `WHERE tenant_id = :tid` |
 | **Audit** | `embedding_profile.created`, `embedding_profile.activated`, `embedding_profile.deprecated` |
 
@@ -412,6 +414,7 @@ CREATE TYPE profile_status AS ENUM ('building', 'active', 'deprecated');
 CREATE TABLE embedding_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id),
     provider TEXT NOT NULL,
     model TEXT NOT NULL,
     dimensions INT NOT NULL,
@@ -421,7 +424,10 @@ CREATE TABLE embedding_profiles (
     deprecated_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_profiles_tenant_status ON embedding_profiles(tenant_id, status);
+CREATE INDEX idx_profiles_workspace_status ON embedding_profiles(tenant_id, workspace_id, status);
+CREATE UNIQUE INDEX uq_profiles_active_per_workspace
+    ON embedding_profiles(tenant_id, workspace_id)
+    WHERE status = 'active';
 ```
 
 ---
@@ -568,8 +574,8 @@ CREATE INDEX idx_policies_scope ON access_policies(scope_type, scope_id);
 | **Owner module** | `documents` (mgmt creates), `worker.runtime` (dequeues) |
 | **PK** | `id UUID` |
 | **FKs** | `document_version_id → document_versions(id)` |
-| **Key columns** | `status`, `current_stage`, `retry_count`, `dead_letter`, `worker_id` |
-| **Indexes** | `(status, tenant_id)` for fair dequeue, `(dead_letter)` partial |
+| **Key columns** | `job_type`, `status`, `current_stage`, `retry_count`, `dead_letter`, `worker_id`, `available_after_at`, `locked_until` |
+| **Indexes** | `(status, tenant_id, available_after_at)` for fair dequeue, `(dead_letter)` partial |
 | **Tenant isolation** | Via version → document → workspace → tenant; explicit `tenant_id` for fairness |
 | **Retention** | Completed jobs: 30 days |
 | **Idempotency** | `last_completed_step` checkpoint for resume-on-retry |
@@ -577,9 +583,11 @@ CREATE INDEX idx_policies_scope ON access_policies(scope_type, scope_id);
 ```sql
 CREATE TYPE job_status AS ENUM ('pending_av', 'av_blocked', 'queued', 'processing', 'completed', 'failed');
 CREATE TYPE pipeline_stage AS ENUM ('av_scan', 'parse', 'chunk', 'embed', 'index', 'cutover');
+CREATE TYPE ingestion_job_type AS ENUM ('upload_ingest', 'reindex');
 
 CREATE TABLE ingestion_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_type ingestion_job_type NOT NULL DEFAULT 'upload_ingest',
     tenant_id UUID NOT NULL,  -- denormalized for fair dequeue
     workspace_id UUID NOT NULL,
     document_version_id UUID NOT NULL REFERENCES document_versions(id),
@@ -591,6 +599,9 @@ CREATE TABLE ingestion_jobs (
     dead_letter BOOLEAN NOT NULL DEFAULT FALSE,
     dead_letter_reason TEXT,
     worker_id TEXT,
+    lock_token UUID,
+    available_after_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    locked_until TIMESTAMPTZ,
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
     error_message TEXT,
@@ -599,11 +610,62 @@ CREATE TABLE ingestion_jobs (
 );
 
 -- Fair dequeue: FOR UPDATE SKIP LOCKED with tenant round-robin
-CREATE INDEX idx_jobs_dequeue ON ingestion_jobs(status, tenant_id, created_at) 
+CREATE INDEX idx_jobs_dequeue ON ingestion_jobs(status, tenant_id, available_after_at, created_at) 
     WHERE status IN ('pending_av', 'queued');
 CREATE INDEX idx_jobs_dead_letter ON ingestion_jobs(dead_letter, tenant_id) 
     WHERE dead_letter = TRUE;
-CREATE INDEX idx_jobs_tenant ON ingestion_jobs(tenant_id, status);
+CREATE INDEX idx_jobs_tenant ON ingestion_jobs(tenant_id, status, available_after_at);
+CREATE INDEX idx_jobs_locked_until ON ingestion_jobs(status, locked_until)
+    WHERE status = 'processing';
+```
+
+---
+
+#### `deletion_jobs`
+
+| Aspect | Detail |
+|--------|--------|
+| **Purpose** | Durable hard-delete queue with step checkpoints for resume-on-retry. |
+| **Owner module** | `documents` (mgmt creates), `worker.runtime` (dequeues) |
+| **PK** | `id UUID` |
+| **FKs** | `document_id -> documents(id)` |
+| **Key columns** | `status`, `last_completed_step`, `retry_count`, `dead_letter`, `available_after_at`, `locked_until` |
+| **Indexes** | `(status, tenant_id, available_after_at)`, `(dead_letter)` partial |
+| **Idempotency** | Step-level checkpoint enables resume after partial failure |
+
+```sql
+CREATE TYPE deletion_job_status AS ENUM ('queued', 'processing', 'completed', 'failed');
+CREATE TYPE deletion_step AS ENUM ('drop_vectors', 'delete_extracted_text', 'delete_original', 'mark_eval_stale', 'audit');
+
+CREATE TABLE deletion_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id),
+    document_id UUID NOT NULL REFERENCES documents(id),
+    status deletion_job_status NOT NULL DEFAULT 'queued',
+    current_step deletion_step,
+    last_completed_step deletion_step,
+    retry_count INT NOT NULL DEFAULT 0,
+    max_retries INT NOT NULL DEFAULT 3,
+    dead_letter BOOLEAN NOT NULL DEFAULT FALSE,
+    dead_letter_reason TEXT,
+    worker_id TEXT,
+    lock_token UUID,
+    available_after_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    locked_until TIMESTAMPTZ,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_deletion_jobs_dequeue ON deletion_jobs(status, tenant_id, available_after_at, created_at)
+    WHERE status = 'queued';
+CREATE INDEX idx_deletion_jobs_dead_letter ON deletion_jobs(dead_letter, tenant_id)
+    WHERE dead_letter = TRUE;
+CREATE INDEX idx_deletion_jobs_locked_until ON deletion_jobs(status, locked_until)
+    WHERE status = 'processing';
 ```
 
 ---
@@ -731,7 +793,7 @@ CREATE INDEX idx_diagnostics_tenant ON answer_diagnostics(tenant_id, created_at)
 | **Purpose** | Link answer to source chunk with position info. |
 | **Owner module** | `chat` |
 | **PK** | `id UUID` |
-| **FKs** | `message_id → chat_messages(id)`, `chunk_id → chunks(id)` |
+| **FKs** | `message_id → chat_messages(id)`, `chunk_id → chunks(id)` (nullable, set null on source deletion) |
 | **Key columns** | `citation_index`, `document_id`, `version_id`, `highlight_start`, `highlight_end` |
 | **Indexes** | `(message_id, citation_index)` |
 | **Audit** | `citation.clicked` on user click |
@@ -740,7 +802,7 @@ CREATE INDEX idx_diagnostics_tenant ON answer_diagnostics(tenant_id, created_at)
 CREATE TABLE citations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     message_id UUID NOT NULL REFERENCES chat_messages(id),
-    chunk_id UUID NOT NULL REFERENCES chunks(id),
+    chunk_id UUID REFERENCES chunks(id) ON DELETE SET NULL,
     citation_index INT NOT NULL,
     document_id UUID NOT NULL,
     document_version_id UUID NOT NULL,
@@ -899,6 +961,14 @@ CREATE TABLE eval_runs (
     suite_id UUID NOT NULL REFERENCES eval_suites(id),
     tenant_id UUID NOT NULL,  -- denormalized for worker fairness
     status run_status NOT NULL DEFAULT 'pending',
+    retry_count INT NOT NULL DEFAULT 0,
+    max_retries INT NOT NULL DEFAULT 3,
+    dead_letter BOOLEAN NOT NULL DEFAULT FALSE,
+    dead_letter_reason TEXT,
+    worker_id TEXT,
+    lock_token UUID,
+    available_after_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    locked_until TIMESTAMPTZ,
     total_cases INT NOT NULL DEFAULT 0,
     pass_count INT NOT NULL DEFAULT 0,
     fail_count INT NOT NULL DEFAULT 0,
@@ -915,8 +985,11 @@ CREATE TABLE eval_runs (
 );
 
 CREATE INDEX idx_runs_suite ON eval_runs(suite_id, created_at DESC);
-CREATE INDEX idx_runs_status ON eval_runs(status) WHERE status IN ('pending', 'running');
+CREATE INDEX idx_runs_status ON eval_runs(status, tenant_id, available_after_at)
+    WHERE status IN ('pending', 'running');
 CREATE INDEX idx_runs_retention ON eval_runs(created_at);
+CREATE INDEX idx_runs_locked_until ON eval_runs(status, locked_until)
+    WHERE status = 'running';
 ```
 
 ---
@@ -1187,7 +1260,7 @@ CREATE INDEX idx_metrics_retention ON metrics_aggregates(created_at);
 | **Purpose** | In-app + email notifications for ops events. |
 | **Owner module** | `admin` (NotificationService) |
 | **PK** | `id UUID` |
-| **FKs** | `workspace_id → workspaces(id)` |
+| **FKs** | `tenant_id -> tenants(id)`, optional `workspace_id -> workspaces(id)` |
 
 ```sql
 CREATE TYPE notification_category AS ENUM (
@@ -1199,7 +1272,8 @@ CREATE TYPE notification_status AS ENUM ('pending', 'delivered', 'failed');
 
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES workspaces(id),
+    tenant_id UUID NOT NULL REFERENCES tenants(id),
+    workspace_id UUID REFERENCES workspaces(id),
     category notification_category NOT NULL,
     subject TEXT NOT NULL,
     body TEXT NOT NULL,
@@ -1210,6 +1284,7 @@ CREATE TABLE notifications (
 );
 
 CREATE INDEX idx_notifications_status ON notifications(status, created_at);
+CREATE INDEX idx_notifications_tenant ON notifications(tenant_id, created_at DESC);
 ```
 
 ---
@@ -1253,7 +1328,7 @@ CREATE INDEX idx_deliveries_pending ON notification_deliveries(status, retry_cou
 |-------|--------|----------------|
 | **Hybrid search** (vector + FTS) | `chunks`, `chunk_embeddings` | HNSW on `embedding`; GIN on `content_tsv`; composite filter on `(workspace_id, collection_id, document_id)` via join |
 | **Permission resolution** | `memberships`, `access_policies` | Composite on resolution path; cache-backed |
-| **Fair job dequeue** | `ingestion_jobs`, `eval_runs` | `(status, tenant_id, created_at)` with `SKIP LOCKED` |
+| **Fair job dequeue** | `ingestion_jobs`, `eval_runs`, `deletion_jobs` | `(status, tenant_id, available_after_at, created_at)` with `SKIP LOCKED` + lease recovery on `locked_until` |
 | **Conversation load** | `chat_messages`, `citations` | `(conversation_id, created_at)` |
 | **Audit filter** | `audit_events` | Partition pruning + `(tenant_id, created_at)` |
 | **Golden question lookup** | `golden_questions` | `(workspace_id, status)` |
@@ -1423,9 +1498,12 @@ JOIN chunk_embeddings ce ON ce.chunk_id = c.id
 JOIN document_versions dv ON dv.id = c.document_version_id
 JOIN documents d ON d.id = dv.document_id
 WHERE d.workspace_id = :workspace_id
-  AND d.collection_id = ANY(:allowed_collection_ids)
-  AND d.id = ANY(:allowed_document_ids)
+  AND (
+    d.collection_id = ANY(:allowed_collection_ids)
+    OR d.id = ANY(:allowed_document_ids)
+  )
   AND d.id != ALL(:denied_document_ids)
+  AND d.deleted_at IS NULL
   AND dv.status = 'active'
   AND c.embedding_profile_id = :active_profile_id
 ORDER BY distance
@@ -1503,6 +1581,7 @@ CREATE TABLE chunks ...;
 CREATE TABLE chunk_embeddings ...;
 CREATE TABLE pending_deletes ...;
 CREATE TABLE ingestion_jobs ...;
+CREATE TABLE deletion_jobs ...;
 
 -- Access control
 CREATE TABLE access_policies ...;
