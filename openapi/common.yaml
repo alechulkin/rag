@@ -1,0 +1,45 @@
+openapi: 3.1.0
+info:
+  title: AI Knowledge Assistant API Common Components
+  version: 1.0.0
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  headers:
+    X-Request-Id:
+      description: Correlation ID propagated end-to-end.
+      schema:
+        type: string
+    Idempotency-Key:
+      description: Optional idempotency key for retry-sensitive writes.
+      schema:
+        type: string
+  schemas:
+    ProblemDetails:
+      type: object
+      required: [type, title, status, requestId]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        requestId:
+          type: string
+    CursorPage:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+    ErrorResponse:
+      $ref: '#/components/schemas/ProblemDetails'
