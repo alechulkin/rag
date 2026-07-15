@@ -2,4 +2,51 @@ openapi: 3.1.0
 info:
   title: Admin API
   version: 1.0.0
-paths: {}
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Admin
+paths:
+  /workspaces:
+    get:
+      tags: [Admin]
+      summary: List workspaces visible to the caller
+      operationId: listWorkspaces
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [workspaceId, name]
+                      properties:
+                        workspaceId: { type: string }
+                        name: { type: string }
+                  nextCursor:
+                    type: string
+                    nullable: true
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './common.yaml#/components/securitySchemes/bearerAuth'

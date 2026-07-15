@@ -2,4 +2,170 @@ openapi: 3.1.0
 info:
   title: Documents and Ingestion API
   version: 1.0.0
-paths: {}
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Documents
+paths:
+  /workspaces/{workspaceId}/documents:
+    post:
+      tags: [Documents]
+      summary: Upload a document (async ingestion)
+      operationId: uploadDocument
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: './common.yaml#/components/headers/Idempotency-Key'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, collectionId]
+              properties:
+                file: { type: string, format: binary }
+                collectionId: { type: string }
+                name: { type: string }
+                tags:
+                  type: array
+                  items: { type: string }
+      responses:
+        '202':
+          description: Accepted (ingestion scheduled)
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [documentId, versionId, ingestionJobId, status]
+                properties:
+                  documentId: { type: string }
+                  versionId: { type: string }
+                  ingestionJobId: { type: string }
+                  status: { type: string }
+        '400':
+          description: Bad request
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/ProblemDetails'
+        '413':
+          description: Payload too large
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/ProblemDetails'
+  /workspaces/{workspaceId}/documents/{documentId}:
+    get:
+      tags: [Documents]
+      summary: Get document metadata
+      operationId: getDocument
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: documentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [documentId, collectionId, name, createdAt]
+                properties:
+                  documentId: { type: string }
+                  collectionId: { type: string }
+                  name: { type: string }
+                  tags:
+                    type: array
+                    items: { type: string }
+                  createdAt: { type: string, format: date-time }
+                  deletedAt: { type: string, format: date-time, nullable: true }
+        '404':
+          description: Not found
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/ProblemDetails'
+    delete:
+      tags: [Documents]
+      summary: Soft-delete a document (hard delete async)
+      operationId: deleteDocument
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: documentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '202':
+          description: Accepted (deletion scheduled)
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deletionJobId, status]
+                properties:
+                  deletionJobId: { type: string }
+                  status: { type: string }
+        '409':
+          description: Conflict (e.g., pending approval / already deleting)
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/ProblemDetails'
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './common.yaml#/components/securitySchemes/bearerAuth'

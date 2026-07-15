@@ -2,4 +2,121 @@ openapi: 3.1.0
 info:
   title: Chat API
   version: 1.0.0
-paths: {}
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Chat
+paths:
+  /workspaces/{workspaceId}/conversations:
+    post:
+      tags: [Chat]
+      summary: Create a conversation
+      operationId: createConversation
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Created
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [conversationId]
+                properties:
+                  conversationId: { type: string }
+  /conversations/{conversationId}/ask:
+    post:
+      tags: [Chat]
+      summary: Ask a question (SSE stream)
+      operationId: ask
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string }
+                scope:
+                  type: object
+                  properties:
+                    collectionIds:
+                      type: array
+                      items: { type: string }
+                    documentIds:
+                      type: array
+                      items: { type: string }
+      responses:
+        '200':
+          description: SSE stream (`text/event-stream`); see ADR-011 for event contract.
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Stream of SSE events.
+        '400':
+          description: Bad request
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/ProblemDetails'
+  /messages/{messageId}/feedback:
+    post:
+      tags: [Chat]
+      summary: Submit feedback for an answer
+      operationId: submitFeedback
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [thumbs]
+              properties:
+                thumbs:
+                  type: string
+                  enum: [up, down]
+                comment:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          headers:
+            X-Request-Id:
+              $ref: './common.yaml#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [feedbackId]
+                properties:
+                  feedbackId: { type: string }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './common.yaml#/components/securitySchemes/bearerAuth'
