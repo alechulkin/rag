@@ -15,8 +15,7 @@ A multi-tenant, permission-aware **RAG (Retrieval-Augmented Generation)** platfo
 
 - Java 21 + Spring Boot backend: document management, search, chat orchestration, RBAC, evaluation APIs, enterprise reliability
 - React + TypeScript frontend: upload, semantic search, chat with citations, admin/RBAC, observability dashboards
-- Optional Node.js BFF / AI Gateway: streaming chat responses, frontend-shaped APIs, AI provider integration
-- Python tooling: document preprocessing experiments, evaluation runner, golden-question quality checks
+- Python tooling (development/CI only): document preprocessing experiments, evaluation scripts, golden-question quality checks
 - **PostgreSQL 16 + pgvector + PostgreSQL full-text search** as the single primary store. The MVP shall use PostgreSQL with pgvector as both the relational store and vector index, and PostgreSQL FTS as the keyword index, to minimize infrastructure cost and operational complexity. Dedicated managed vector databases (e.g., Pinecone, Weaviate) and managed search services (e.g., OpenSearch, Elasticsearch) are **out of scope** for MVP.
 - Object storage abstraction (MinIO local, S3 / Azure Blob cloud). Document-management SaaS or "intelligent document" services are out of scope for MVP.
 - **MVP runtime: single VM, Azure Container Apps, AWS App Runner, App Service, or Docker Compose on a VM.** Kubernetes (AKS / EKS / GKE) is **out of scope for MVP** and reserved for production hardening or multi-tenant scale-out.
@@ -131,7 +130,7 @@ Audit logs are **immutable from the application layer and append-only** (not ful
 
 **Audit events**
 
-- User login (including failed attempts and MFA challenges)
+- Application login and authorization outcomes (success/failure, token validation, access-denied events). IdP-internal MFA challenge events are sourced from IdP audit logs, not the application audit table.
 - Document uploaded
 - Document deleted
 - Document access changed
@@ -173,7 +172,7 @@ Audit logs are **immutable from the application layer and append-only** (not ful
 - **Pipeline properties:** asynchronous, observable, permission-aware
   - Upload acknowledges fast after validation and durable storage of the original file, metadata, and ingestion job record
   - Background workers run: parsing -> chunking -> embedding -> indexing
-  - Per-document status: `uploaded -> parsing -> chunking -> embedding -> indexed | failed`
+  - Per-document status: `uploaded -> pending_av -> av_blocked | queued -> parsing -> chunking -> embedding -> indexed | failed`
   - Retries up to 3x with clear failure reasons and manual retry by authorized users
   - **Versioning:** previous version remains active and searchable until the new version finishes indexing successfully
   - **Connector framework:** every future source produces normalized `DocumentSourceItem`s feeding the standard ingestion pipeline (extract -> chunk -> embed -> index -> audit -> eval-impact)
@@ -331,7 +330,7 @@ Each provider must declare: region, retention behavior, customer-data training p
 
 **Availability**
 
-- **99.5% monthly** for core application APIs (excluding planned maintenance and external AI-provider outages)
+- **99.0% monthly best-effort** for core application APIs (excluding planned maintenance and external AI-provider outages)
 
 **Degraded mode**
 
@@ -347,7 +346,7 @@ Each provider must declare: region, retention behavior, customer-data training p
 
 **Backups.** Daily. RPO 24 h, RTO 4 h.
 
-**MVP cost trade-off (explicit).** The 99.5% monthly availability target, the latency p95 ceilings (search 1.5 s, TTFT 2 s, full answer 8 s), and the RPO/RTO above are deliberately set so the pilot can run on the cheapest viable footprint (single VM / container-app / app-service, single AZ, no HA replicas, no hot-standby providers, lightweight observability). The platform shall not over-invest in higher availability, lower latency, deeper observability, or richer model tiers in MVP. Tightening any of these targets is a production-launch concern, not an MVP concern.
+**MVP cost trade-off (explicit).** The 99.0% monthly best-effort availability target, the latency p95 ceilings (search 1.5 s, TTFT 2 s, full answer 8 s), and the RPO/RTO above are deliberately set so the pilot can run on the cheapest viable footprint (single VM / container-app / app-service, single AZ, no HA replicas, no hot-standby providers, lightweight observability). The platform shall not over-invest in higher availability, lower latency, deeper observability, or richer model tiers in MVP. Tightening any of these targets is a production-launch concern, not an MVP concern.
 
 ### 4.5 Data Lifecycle, Retention, and Deletion
 
@@ -498,11 +497,10 @@ Pluggable provider abstraction for chat, embeddings, and (future) rerankers. Pro
 - MinIO
 - Spring Boot backend
 - React frontend
-- Optional Node.js BFF
 
-**Cloud deployment target**
+**Cloud deployment target (post-MVP / production-launch roadmap)**
 
-Managed PostgreSQL, managed object storage, managed queue/broker, managed identity, secret management, Kubernetes or container platform.
+Managed PostgreSQL, managed object storage, optional managed queue/broker, managed identity, secret management, and a managed container platform. Kubernetes is explicitly out of scope for MVP and considered only when production-scale triggers are met.
 
 ### 5.5 Observability, SIEM & Notifications
 
@@ -535,10 +533,6 @@ flowchart LR
     React[React + TypeScript SPA]
   end
 
-  subgraph edge [Edge / BFF]
-    BFF["Optional Node.js BFF<br/>(streaming, AI gateway)"]
-  end
-
   subgraph core [Core Platform]
     SB["Spring Boot Backend<br/>(Java 21)"]
     Worker["Spring Boot Worker<br/>(ingestion jobs)"]
@@ -561,12 +555,10 @@ flowchart LR
   end
 
   subgraph eval [Eval Tooling]
-    Py["Python eval runner<br/>+ golden Q&A"]
+    Py["Python tooling (dev/CI)<br/>+ golden Q&A scripts"]
   end
 
-  React --> BFF
   React --> SB
-  BFF --> SB
   React -- "OIDC login" --> KC
   SB -- "JWT validate" --> KC
   SB --> PG
@@ -588,15 +580,13 @@ flowchart LR
 ```mermaid
 sequenceDiagram
   participant U as User (React)
-  participant BFF as Node BFF (optional)
   participant API as Spring Boot API
   participant Pol as Policy Engine
   participant PG as PostgreSQL + pgvector
   participant Prov as AI Provider
   participant Aud as Audit Log
 
-  U->>BFF: Ask question (JWT)
-  BFF->>API: Forward + stream channel
+  U->>API: Ask question (JWT)
   API->>Pol: Validate user, tenant, workspace, doc scope
   Pol-->>API: Allowed filter set (tenant/workspace/collection/doc IDs)
   API->>PG: Vector + keyword search with allowed filter
@@ -609,8 +599,7 @@ sequenceDiagram
     Pol-->>API: Allow
     API->>Prov: Prompt + minimized context (streaming)
     Prov-->>API: Tokens (streamed)
-    API-->>BFF: Stream tokens + citations
-    BFF-->>U: Render answer + clickable citations
+    API-->>U: Stream tokens + citations
   end
   API->>Aud: Record diagnostic metadata (chunks, citations, model, prompt version, tokens, latency)
 ```

@@ -33,13 +33,13 @@ This document defines the measurable non-functional requirements (NFRs) for the 
 ### 1.1 Monthly Uptime SLA — Core APIs
 
 - **Category:** Availability
-- **Requirement:** Monthly availability of `/api/search`, `/api/chat`, `/api/documents`, `/api/auth/*`.
-- **Source:** Explicit (BRD §4.4: "99.5% monthly for core application APIs").
+- **Requirement:** Monthly availability of `/api/search`, `/api/chat`, `/api/documents`.
+- **Source:** Explicit (BRD §4.4 best-effort monthly availability target for core application APIs).
 - **Target:**
-  - MVP: **99.0%**(≈  7h 18m downtime/month) best-effort target, with **99.5%**(≈  3h 39m downtime/month) as a stretch goal, on a single-VM / single-AZ footprint with no HA replicas and no hot-standby providers.
+  - MVP: **99.0%**(≈ 7h 18m downtime/month) best-effort target on a single-VM / single-AZ footprint with no HA replicas and no hot-standby providers.
   - Production launch: **99.9%** (≈ 43 min / month) on managed PG with single-AZ HA + container-platform managed runtime.
   - Future scale: **99.95%** for regulated tenants (≈ 22 min / month) with multi-AZ HA and additional capacity headroom.
-- **Reasoning:** BRD positions the product as an internal decision-support tool, not life-critical. 99.5% on the cheapest viable footprint suffices for pilot ROI; banking-adjacent clients demand 99.9%+ once it becomes routinely used in compliance workflows, and that tier of availability is what justifies the production-launch infra spend in NFR §6.4.
+- **Reasoning:** BRD positions the product as an internal decision-support tool, not life-critical. 99.0% best-effort fits the cheapest viable pilot footprint; banking-adjacent clients demand 99.9%+ once it becomes routinely used in compliance workflows, and that tier of availability is what justifies the production-launch infra spend in NFR §6.4.
 - **Priority:** Must-have.
 - **Validation method:** Synthetic uptime probes (every 60 s) against `/actuator/health` and one end-to-end smoke endpoint; monthly availability report.
 - **Risk if not implemented:** Loss of pilot trust; cannot meet DORA-style operational resilience expectations referenced in BRD §4.1.
@@ -91,7 +91,7 @@ This document defines the measurable non-functional requirements (NFRs) for the 
 - **Target:** **< 0.5% of requests over rolling 5 minutes** at MVP, **< 0.1%** at production launch.
 - **Reasoning:** Read paths must be near-perfect; only chat (LLM-dependent) tolerates higher transient error rates.
 - **Priority:** Must-have.
-- **Validation method:** Prometheus alert on `http_server_errors_total / http_server_requests_total` per endpoint.
+- **Validation method:** Alert computed from PostgreSQL-stored metrics (`http_server_errors_total / http_server_requests_total`) per endpoint in the admin observability dashboard.
 - **Risk if not implemented:** Degrades trust in retrieval pipeline; users blame the AI when it's actually infrastructure.
 
 ### 1.6 Error Rate — Chat / LLM Path
@@ -164,7 +164,7 @@ This document defines the measurable non-functional requirements (NFRs) for the 
   - Production launch: p50 ≤ 300 ms, p95 ≤ 1.0 s, p99 ≤ 2 s.
 - **Reasoning:** BRD pins p95; p50/p99 added so we can detect distribution skew that p95 alone hides.
 - **Priority:** Must-have.
-- **Validation method:** k6/Gatling load test against `/api/search`; histogram metrics in Prometheus (`search_duration_seconds`).
+- **Validation method:** k6/Gatling load test against `/api/search`; histogram metrics captured in PostgreSQL metric buckets (`search_duration_seconds` family).
 - **Risk if not implemented:** Slow search undermines the whole "fast knowledge retrieval" value proposition.
 
 ### 2.2 Chat — Time to First Token (Streaming)
@@ -199,7 +199,7 @@ This document defines the measurable non-functional requirements (NFRs) for the 
 - **Target:** p50 ≤ 600 ms, **p95 ≤ 1.5 s**, p99 ≤ 2.5 s.
 - **Reasoning:** Sub-component of TTFT; called out separately in BRD to isolate retrieval performance from provider performance.
 - **Priority:** Must-have.
-- **Validation method:** Internal span `rag.retrieve_and_build_prompt` exported via OpenTelemetry.
+- **Validation method:** Internal timer metric `rag.retrieve_and_build_prompt` stored in PostgreSQL aggregates and surfaced on the admin observability dashboard.
 - **Risk if not implemented:** Slow retrieval blames provider; root cause hidden.
 
 ### 2.5 Document Upload Acknowledgement Latency
@@ -562,7 +562,7 @@ This document defines the measurable non-functional requirements (NFRs) for the 
   - Output encoding in React; CSP headers; X-Frame-Options DENY.
   - **Rate limiting (three-layer model, see SAD §7.8):**
     - *IP / connection flood:* edge-level IP rate limit (LB / ingress); MVP uses built-in LB facility at no extra cost, production graduates to managed WAF / API gateway when justified.
-    - *Per-user request rate:* enforced in **Spring** (`OncePerRequestFilter`) on `/api/auth/*`, `/api/chat`, `/api/search` — requires resolved JWT identity, so only the backend can enforce it. MVP: in-memory counters (single replica). Production: shared counters in Redis or PG. **Fail-closed** on counter unavailability.
+    - *Per-user request rate:* enforced in **Spring** (`OncePerRequestFilter`) on `/api/chat` and `/api/search` — requires resolved JWT identity, so only the backend can enforce it. MVP: in-memory counters (single replica). Production: shared counters in Redis or PG. **Fail-closed** on counter unavailability.
     - *Per-tenant AI token budget:* enforced in the **Policy Engine** at provider-call time; **fail-closed** at budget cap. This is a cost-safety hard stop and cannot live at any edge layer.
   - **LLM-specific:** prompt-injection mitigation (system-prompt isolation, retrieved-context sanitization), output filtering for forbidden tokens (e.g., secrets), prompt allow-list per workspace.
   - Dependency scanning (Snyk / OWASP Dependency-Check) blocking on high/critical CVEs.
@@ -637,7 +637,7 @@ This document defines the measurable non-functional requirements (NFRs) for the 
 - **Category:** Privacy
 - **Requirement:** Per-workspace data classification driving AI-provider policy.
 - **Source:** Implied (BRD §4.3 sensitive workspace rules).
-- **Target:** Workspaces support classification levels: **Public / Internal / Confidential / Restricted**. Each level maps to:
+- **Target:** Workspaces support classification levels: **standard / restricted / strict**. Each level maps to:
   - Allowed AI providers
   - Allowed regions
   - Allowed retention behavior
@@ -826,7 +826,7 @@ This document defines the measurable non-functional requirements (NFRs) for the 
 - **Target:**
   - **Per-tenant AI token budget** (Concern 3 in SAD §7.8): enforced in the Policy Engine at provider-call time. Default cap: €150/month per tenant MVP (NFR §6.5). At ≥ 110% budget consumption → **fail-closed** (block further AI calls for that tenant; notify admin).
   - **Per-tenant token-rate ceiling:** 200k tokens/minute default — prevents a single tenant's burst from consuming the shared provider quota.
-  - **Per-user request rate** (Concern 2 in SAD §7.8): 30 chat requests/minute, 200 requests/hour — enforced in Spring `OncePerRequestFilter`, not at edge or BFF.
+  - **Per-user request rate** (Concern 2 in SAD §7.8): 30 chat requests/minute, 200 requests/hour — enforced in Spring `OncePerRequestFilter`, not at edge or in the frontend.
   - MVP: in-memory rate counters (single API replica, Bucket4j or equivalent). Production: shared Redis or PG counter table for multi-replica consistency.
 - **Reasoning:** Stops a runaway script/integration from burning the budget. The three limit types are layered because each requires different identity context (see SAD §7.8 for the full rationale).
 - **Priority:** Must-have at production launch; per-tenant budget cap must-have from MVP day 1 (cost-safety hard stop).
@@ -940,7 +940,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
   - **Breaking changes:** new major version with **≥ 6 months** parallel availability before deprecation.
   - **Non-breaking changes:** additive; documented in changelog.
   - Deprecation announced via `Deprecation` and `Sunset` headers (RFC 8594).
-- **Reasoning:** Stable APIs are critical once external integrations exist (BFF, eval runner, future connectors).
+- **Reasoning:** Stable APIs are critical once external integrations exist (frontend SPA, eval runner, future connectors).
 - **Priority:** Must-have.
 - **Validation method:** OpenAPI diff in CI; deprecation tracker.
 
@@ -1018,7 +1018,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
 - **Requirement:** Core operational metrics emitted and persisted cheaply.
 - **Source:** Explicit (BRD §5.5 list).
 - **Target:**
-  - **MVP storage:** counters and rolling aggregates persisted in the same PostgreSQL instance as application data (tables `metric_counters`, `metric_histograms`); exposed via Actuator endpoints and the React admin dashboard. **No Prometheus / Grafana / external time-series store.**
+  - **MVP storage:** counters and rolling aggregates persisted in the same PostgreSQL instance as application data (table `metrics_aggregates`); exposed via Actuator endpoints and the React admin dashboard. **No Prometheus / Grafana / external time-series store.**
   - **Production launch:** metrics exported via OpenMetrics / Prometheus scrape to a managed Grafana or Azure Monitor / CloudWatch backend.
   - Metric families (same in both tiers):
     - `http_server_requests_*` (latency histograms, count, errors) per route.
@@ -1104,7 +1104,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
   - SLO 2 — Chat TTFT: 95% of requests < 2 s over 30-day window.
   - SLO 3 — Chat completeness: 98% of chat requests return a non-error response (excluding "I don't know") over 30 days.
   - SLO 4 — Ingestion success: 95% of jobs reach `indexed` status within stated time targets (BRD §4.4) over 30 days.
-  - SLO 5 — Availability: 99.5% (MVP) / 99.9% (prod) monthly.
+  - SLO 5 — Availability: 99.0% (MVP best-effort) / 99.9% (prod) monthly.
   - **Error budget burn alerts** at 2% (2-hour window) and 10% (24-hour window).
 - **Reasoning:** Converts BRD latency/availability promises into actionable budgets.
 - **Priority:** Should-have for MVP, Must-have at production launch.
@@ -1148,7 +1148,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
 - **Source:** Suggested.
 - **Target:**
   - Every PR triggers: build, unit test, integration test (Testcontainers), lint, SAST, dependency scan, container image build with SBOM.
-  - Main-branch merge promotes through environments via GitOps (Argo CD or equivalent).
+  - Main-branch merge promotes through environments via automated CI/CD pipeline (runtime-native deployment workflow; no Argo CD requirement in MVP).
   - Pipeline duration: PR feedback ≤ **10 minutes** at MVP, ≤ **8 minutes** at production launch.
 - **Reasoning:** Fast feedback loops sustain release frequency.
 - **Priority:** Must-have.
@@ -1302,7 +1302,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
 ### 10.6 API Compatibility Requirements
 
 - **Category:** Compatibility
-- **Requirement:** Stable contracts for BFF, eval runner, future connectors.
+- **Requirement:** Stable contracts for frontend SPA, eval runner, future connectors.
 - **Source:** Implied.
 - **Target:** See 7.5 (versioning). All breaking changes communicated via release notes and deprecation headers.
 - **Priority:** Must-have.
@@ -1399,7 +1399,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
 - **Source:** Suggested.
 - **Target:**
   - File-type validation (MIME + magic-number) at upload; reject non-allowed types early.
-  - File-size cap: **25 MB per file** (MVP) / 100 MB (production), per BRD §4.4 ingestion bounds.
+  - File-size cap: **PDF <= 50 MB, MD/TXT <= 10 MB** (MVP) / 100 MB (production), aligned with ingestion PRD limits.
   - Field-level validation on all admin forms (lengths, allowed characters, foreign-key existence).
   - Reject any document with corrupted text-extraction output > 50% non-printable characters.
 - **Reasoning:** Bad data poisons retrieval quality.
@@ -1483,7 +1483,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
 
 | #     | Category                       | Requirement                                    | Source     | MVP target                                    | Prod-launch target                              | Priority    |
 | ----- | ------------------------------ | ---------------------------------------------- | ---------- | --------------------------------------------- | ----------------------------------------------- | ----------- |
-| 1.1   | Availability                   | Monthly uptime SLA                             | Explicit   | 99.5%                                         | 99.9% (99.95% future)                           | Must-have   |
+| 1.1   | Availability                   | Monthly uptime SLA                             | Explicit   | 99.0% (best-effort)                           | 99.9% (99.95% future)                           | Must-have   |
 | 1.2   | Availability                   | Planned maintenance window                     | Explicit   | ≤ 2/month, ≤ 2 h, off-hours                   | Same                                            | Must-have   |
 | 1.3   | Availability                   | RTO                                            | Explicit   | 4 h                                           | 2 h (1 h future)                                | Must-have   |
 | 1.4   | Reliability                    | RPO                                            | Explicit   | 24 h                                          | 1 h (15 min future)                             | Must-have   |
@@ -1689,7 +1689,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
     Do any target tenants use locked-down enterprise browser versions older than the last two major Chrome/Edge releases?
 
 16. **Data classification model.**
-    Does the proposed four-tier classification model — **Public / Internal / Confidential / Restricted** — match how pilot customers already classify documents?
+    Does the proposed three-tier classification model — **standard / restricted / strict** — match how pilot customers already classify documents?
 
 17. **Budget-cap behavior.**
     When a tenant reaches its AI budget cap, should the system:
@@ -1708,7 +1708,7 @@ Items marked "Post-graduation" remain forbidden until a formal NFR amendment is 
 | Data tier                     | Single PostgreSQL 16 + pgvector + FTS; no dedicated vector / search DB | Same PG + pgvector + FTS; migrate only if eval metrics demand                  |
 | Object storage                | Azure Blob / S3 / MinIO; no doc-management SaaS              | Same                                                                            |
 | Identity                      | Small Keycloak container, managed Entra ID / Okta, or dev OIDC mock | Managed Entra ID / Okta / Keycloak                                              |
-| Availability                  | 99.5% best-effort, business-hours ops, single AZ, no HA replica | 99.9%, 24×7 on-call, multi-AZ HA, runbooks for all P1/P2 alerts                |
+| Availability                  | 99.0% best-effort, business-hours ops, single AZ, no HA replica | 99.9%, 24×7 on-call, multi-AZ HA, runbooks for all P1/P2 alerts                |
 | Disaster recovery             | Daily backup, RTO 4 h, manual restore drill                  | PITR (RPO 1 h), RTO 2 h, automated DR drills quarterly                          |
 | Deployment                    | Rolling, weekly cadence, no autoscaling                      | Canary, daily-capable, IaC drift detection, HPA, change-approval audit          |
 | Security                      | OWASP basics, IdP-enforced auth, append-only audit           | + annual pen test, secret-rotation drill, SOC 2 Type 1 readiness                |
@@ -1744,7 +1744,7 @@ Strict EU residency, fail-closed permission enforcement, audit completeness, and
 
 ### 17.3 Availability vs Cost
 
-Going from 99.5% to 99.9% typically multiplies infrastructure cost by ~2-3× (multi-AZ, hot standbys, more capacity headroom, paid 24×7 on-call). **MVP deliberately accepts the BRD-pinned 99.5% on a single-VM / single-AZ footprint with no HA replicas and no hot-standby providers, in exchange for the €500/mo infra ceiling (NFR §6.3).** Production launch buys multi-AZ HA and tightens the SLA to 99.9%.
+Going from 99.0% to 99.9% typically multiplies infrastructure cost by ~2-3× (multi-AZ, hot standbys, more capacity headroom, paid 24×7 on-call). **MVP deliberately accepts a 99.0% best-effort target on a single-VM / single-AZ footprint with no HA replicas and no hot-standby providers, in exchange for the €500/mo infra ceiling (NFR §6.3).** Production launch buys multi-AZ HA and tightens the SLA to 99.9%.
 
 ### 17.4 Scale vs Multi-Tenancy Isolation
 
