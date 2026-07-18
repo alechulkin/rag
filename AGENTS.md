@@ -24,7 +24,8 @@ them as the source for any generated code.
 7. `docs/API_Contracts.md` + `openapi/*.yaml` — HTTP/SSE contract surface
 8. `docs/Communication_Patterns.md` — sync/async interaction rules
 9. `docs/prd/*.md` — feature requirements
-10. `docs/Architecture_Options.md` — historical analysis only, not authority
+10. `docs/Design_System.md` — frontend UI/UX conventions and MVP component/tokens contract (style-layer; subordinate to requirement docs above)
+11. `docs/Architecture_Options.md` — historical analysis only, not authority
 
 When documents conflict, report the conflict. Do not silently choose one.
 When this file conflicts with `docs/`, `docs/` wins — report the drift.
