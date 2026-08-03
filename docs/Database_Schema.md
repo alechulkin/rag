@@ -99,12 +99,14 @@ erDiagram
 | **Owner module** | `admin` |
 | **PK** | `id UUID DEFAULT gen_random_uuid()` |
 | **FKs** | None |
-| **Key columns** | `name TEXT NOT NULL`, `residency_region TEXT NOT NULL DEFAULT 'eu-west'`, `default_classification tenant_classification NOT NULL DEFAULT 'standard'`, `idp_issuer TEXT[]`, `status tenant_status NOT NULL DEFAULT 'active'`, `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `updated_at TIMESTAMPTZ` |
+| **Key columns** | `name TEXT NOT NULL`, `residency_region TEXT NOT NULL DEFAULT 'eu-west'`, `default_classification tenant_classification NOT NULL DEFAULT 'standard'`, `idp_issuer TEXT[]`, `jit_email_domains TEXT[]`, `status tenant_status NOT NULL DEFAULT 'active'`, `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `updated_at TIMESTAMPTZ` |
 | **Indexes** | `UNIQUE(name)` |
 | **Tenant isolation** | Self-scoping root |
 | **Retention** | Indefinite; archive sets `status='archived'` |
 | **Audit** | `tenant.created`, `tenant.updated`, `tenant.archived` |
 | **Immutable** | `id`, `created_at` |
+
+> **`jit_email_domains`** implements the BA §7.2.a JIT-provisioning allow-list: JIT provisioning is permitted only when the JWT issuer is present in `idp_issuer` **and** the user's email domain is present in `jit_email_domains`. Added in the foundation slice (see `docs/specs/01_Foundation_Spec.md`); this is a canonical schema change, not an application-layer convention.
 
 ```sql
 CREATE TYPE tenant_status AS ENUM ('active', 'archived', 'suspended');
@@ -116,6 +118,7 @@ CREATE TABLE tenants (
     residency_region TEXT NOT NULL DEFAULT 'eu-west',
     default_classification tenant_classification NOT NULL DEFAULT 'standard',
     idp_issuer TEXT[],
+    jit_email_domains TEXT[] NOT NULL DEFAULT '{}',
     status tenant_status NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ
@@ -1551,7 +1554,7 @@ LIMIT :top_k;
 ### 9.1 Foundation Slice (Week 1-2)
 
 ```sql
--- Core multi-tenancy
+-- Core multi-tenancy (tenants includes jit_email_domains, see §2.1)
 CREATE TABLE tenants ...;
 CREATE TABLE workspaces ...;
 CREATE TABLE users ...;
@@ -1567,24 +1570,28 @@ CREATE TABLE audit_events ...;
 CREATE TABLE provider_configs ...;
 CREATE TABLE workspace_ai_policies ...;
 CREATE TABLE provider_budget_counters ...;
-```
 
-### 9.2 Ingestion Slice (Week 3-4)
-
-```sql
--- Documents
+-- Canary pull-forward (per-workspace canary chunk, SAD §2.3/§8 track 1 —
+-- minimum §9.2 tables needed for a persisted, deniable canary; see
+-- docs/specs/01_Foundation_Spec.md for the full resolution)
 CREATE TABLE collections ...;
 CREATE TABLE documents ...;
 CREATE TABLE document_versions ...;
 CREATE TABLE embedding_profiles ...;
 CREATE TABLE chunks ...;
 CREATE TABLE chunk_embeddings ...;
+CREATE TABLE access_policies ...;  -- explicit deny rows for the canary collection only
+```
+
+### 9.2 Ingestion Slice (Week 3-4)
+
+```sql
+-- Documents (collections/documents/document_versions/embedding_profiles/
+-- chunks/chunk_embeddings/access_policies already exist from §9.1 canary
+-- pull-forward; this slice adds real ingestion job plumbing)
 CREATE TABLE pending_deletes ...;
 CREATE TABLE ingestion_jobs ...;
 CREATE TABLE deletion_jobs ...;
-
--- Access control
-CREATE TABLE access_policies ...;
 
 -- Run SAD §9.1 benchmark gate before merge
 ```
