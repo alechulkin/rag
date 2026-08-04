@@ -1,36 +1,162 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# Students may use any technology stack, so the review should focus on EVIDENCE
+# that Agentic Engineering practices were applied, rather than on specific technologies.
+#
+# Reviews are advisory and must not block the merge.
+# This is educational feedback, not a mandatory quality gate.
+
 language: "en-US"
-early_access: false
-tone_instructions: "Be direct, concise, and evidence-led. Prioritize actionable findings over praise."
+
+tone_instructions: >-
+  Be specific, constructive, and pragmatic.
 
 reviews:
   profile: "assertive"
   request_changes_workflow: false
   high_level_summary: true
-  high_level_summary_in_walkthrough: true
-  review_status: true
-  review_details: true
-  commit_status: true
-  fail_commit_status: true
+  poem: false
+
   auto_review:
     enabled: true
     drafts: false
-  path_instructions:
-    - path: ".github/workflows/**"
-      instructions: |
-        Treat workflow changes as security-sensitive. Flag unpinned third-party actions, broad write permissions, persisted checkout credentials in write-token jobs, pull_request_target misuse, and untrusted GitHub context interpolated into shell commands.
-    - path: "{scripts,bin}/**"
-      instructions: |
-        Focus on command injection, unsafe subprocess usage, path traversal, SSRF, secret exposure, and missing tests for new CLI behavior.
-    - path: "skills/**/scripts/**"
-      instructions: |
-        Review generated or imported scripts as untrusted-input tooling. Flag RCE, path traversal, network fetches without validation, and writes outside the expected workspace.
-    - path: "{skills,commands,agents,rules}/**"
-      instructions: |
-        Focus on prompt-injection resilience, tool-permission scope, destructive action guards, and secret exfiltration risks.
-    - path: "{SECURITY.md,docs/security/**}"
-      instructions: |
-        Check that official distribution surfaces, disclosure guidance, and supply-chain rules stay accurate and do not endorse unofficial packages.
 
-chat:
-  auto_reply: true
+  path_filters:
+    # Tool-specific prompts, generated files, and bundled design runtime files
+    # are not part of the product-code review surface.
+    #
+    # AGENTS.md, Cursor rules, and Cursor skills remain included because they
+    # provide evidence of context engineering and agent workflow design.
+    - "!.cursor/prompts/**"
+
+  path_instructions:
+    - path: "**"
+      instructions: >-
+        This Pull Request is a submission for the
+        "Agentic Engineering: Greenfield" course.
+
+        The student may use any technology stack. Read both the Pull Request
+        description and the submitted changes. Focus primarily on EVIDENCE
+        that an intentional Agentic Engineering process was followed.
+
+        Verify whether the submission includes:
+
+        1. The author's real name.
+
+        2. A link to a short video demonstration, approximately 1–2 minutes.
+
+        3. A meaningful description of the Agentic Engineering practices used,
+        including where applicable:
+
+        - context engineering and repository instructions such as AGENTS.md;
+        - Cursor rules and reusable agent skills;
+        - planning and implementation loops;
+        - separation of maker and checker responsibilities;
+        - use of sub-agents or independent validation;
+        - specifications, tests, evaluations, and acceptance criteria;
+        - verification steps and evidence that they were executed;
+        - tools, agent skills, rules, and MCP integrations used;
+        - which decisions were made by the student;
+        - which work was delegated to an agent;
+        - how generated output was reviewed and corrected.
+
+        4. Evidence that the work was completed, integrated, and verified,
+        rather than merely generated and left unfinished.
+
+        If any of items 1–4 is missing, explain politely and precisely what
+        evidence is absent and how the student can provide it.
+
+        Review the implementation on its merits, regardless of stack.
+
+        Focus code-level feedback on:
+
+        - clear functional defects;
+        - incomplete or disconnected implementation;
+        - security issues, especially exposed secrets;
+        - missing validation or error handling;
+        - lack of tests or verification for important behavior;
+        - contradictions between specifications and implementation;
+        - unclear ownership or architecture boundaries;
+        - generated code that was not adapted to the actual project.
+
+        Do not spend review effort on minor formatting or style issues that
+        should already be enforced by formatters, linters, or static-analysis tools.
+
+        Recognize and explicitly praise strong engineering work, including:
+
+        - clear specifications and acceptance criteria;
+        - effective repository context and agent instructions;
+        - small, reviewable implementation steps;
+        - meaningful automated tests;
+        - independent verification;
+        - documented trade-offs;
+        - evidence of human judgment;
+        - honest reporting of limitations and unresolved issues.
+
+        Treat the review as educational and advisory. Do not request changes
+        solely because the student selected a different framework, language,
+        architecture style, cloud platform, or AI tool.
+
+    - path: "AGENTS.md"
+      instructions: >-
+        Review AGENTS.md as evidence of repository-level context engineering.
+
+        Check whether it clearly defines:
+
+        - project purpose and domain boundaries;
+        - authoritative documentation and source-of-truth order;
+        - approved technology stack;
+        - architecture and module boundaries;
+        - coding and testing conventions;
+        - security-critical rules;
+        - commands for build, test, lint, and verification;
+        - patterns that are intentionally used or avoided;
+        - rules for planning, editing, and updating documentation.
+
+        Flag instructions that are vague, contradictory, obsolete, excessively
+        long, or disconnected from the actual repository.
+
+        Do not evaluate AGENTS.md as product code.
+
+    - path: "{.cursor,.claude}/rules/**"
+      instructions: >-
+        Review these files as scoped repository instructions for Cursor.
+
+        Check whether each rule:
+
+        - has a clear and non-overlapping purpose;
+        - is correctly scoped to relevant files or directories;
+        - is consistent with AGENTS.md and approved architecture decisions;
+        - contains concrete, actionable instructions;
+        - avoids duplicating generic framework documentation;
+        - does not introduce unapproved technologies or architecture;
+        - defines verification expectations where appropriate.
+
+        Flag rules that conflict, apply too broadly, duplicate one another,
+        or contain obsolete assumptions.
+
+        Review them as Agentic Engineering artifacts, not as product code.
+
+    - path: "{.cursor,.codex,.agents}/skills/**"
+      instructions: >-
+        Review these files as reusable Agentic Engineering workflow artifacts,
+        not as product code.
+
+        Check whether each skill has:
+
+        - a clear purpose and triggering context;
+        - explicit inputs and expected outputs;
+        - concrete execution steps;
+        - repository-specific commands where appropriate;
+        - verification and completion criteria;
+        - failure handling and stop conditions;
+        - safe boundaries for file changes and external actions;
+        - a clear distinction between planning, implementation, and checking;
+        - minimal duplication with AGENTS.md or Cursor rules.
+
+        Praise skills that define repeatable engineering procedures with
+        objective verification.
+
+        Flag skills that merely restate a broad prompt, provide no correctness
+        oracle, claim verification without running checks, or encourage
+        uncontrolled repository-wide changes.

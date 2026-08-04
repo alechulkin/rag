@@ -30,45 +30,18 @@ them as the source for any generated code.
 When documents conflict, report the conflict. Do not silently choose one.
 When this file conflicts with `docs/`, `docs/` wins — report the drift.
 
-## Technology Stack (MVP, per ADRs)
+## Skills (migrated sections — resolve before acting)
 
-- **Backend:** Java 21, Spring Boot modular monolith, two profiles: `api` and `worker` (ADR-001). Separate JVMs — cross-profile handoff is durable state only (PostgreSQL rows + object-storage keys), never in-memory objects.
-- **Data:** PostgreSQL 16 + pgvector (HNSW) + FTS as the single primary store (ADR-002). DB-backed job queues with lease semantics (ADR-003, ADR-010). Flyway migrations.
-- **Frontend:** React + TypeScript SPA. REST + SSE (`token`, `citation`, `heartbeat`, `done`, `error` — ADR-011).
-- **Auth:** OIDC/OAuth2 resource-server model. Keycloak local; Entra ID/Okta cloud.
-- **Object storage:** MinIO local; S3-compatible / Azure Blob cloud.
-- **Python:** dev/CI tooling only, never a runtime service (ADR-017).
-- **Excluded from MVP without a new ADR:** Kubernetes, Kafka/brokers (graduation triggers in ADR-006), Redis as a correctness dependency, dedicated vector DBs, managed observability SaaS (ADR-008), Node.js BFF (rejected by default, ADR-018).
+The following AGENTS.md sections moved to skills in `.agents/skills/`.
+Load the matching skill before working in its area; each active skill
+prints 🤖 in the response.
 
-## Module Map (canonical: `docs/Module_Boundaries.md` §2–3)
-
-One Gradle module; logical walls enforced by ArchUnit, not separate jars.
-
-- **Hard-walled (ArchUnit CI-blocking):** `policy`, `audit`, `search`, `ai.provider`
-- **Domain:** `documents` (mgmt / pipeline / connector sub-packages), `rag`, `chat`, `evaluation`, `admin`
-- **Supporting:** `web` (controllers), `worker.runtime`, `metrics`, `adapters` (objectstorage, identity)
-
-Do not invent additional modules (no separate ingestion, notification,
-connector, observability, identity modules — see Module_Boundaries §1 for
-why those were collapsed). Do not create global `controller`/`service`/
-`repository` layer packages.
-
-## Non-Negotiable Invariants (ArchUnit / CI-blocking)
-
-1. Provider SDK classes only inside `ai.provider.adapter`; sole AI entry point is `PolicyEngine.callProvider()` (SAD §2.3; ADR-004).
-2. All vector/FTS queries go through `search` (`PermissionAwareSearchRepository`); every read requires `AllowedFilterSet`; no native/pgvector/tsvector queries elsewhere.
-3. `rag` resolves its own permission filter via `policy.access` — callers never supply a hand-built `AllowedFilterSet`.
-4. `audit` is the sole writer to `audit_events`, append-only, in the caller's transaction (ADR-005, ADR-015).
-5. `documents.mgmt` (api) never imports `documents.pipeline` (worker); communication only via `ingestion_jobs` rows.
-6. Fail-closed: permission ambiguity, provider-policy failure, or budget-store unavailability → deny (BRD §2.2, §4.3).
-7. Per-tenant canary chunk seeded from foundation slice; canary in any result = P1.
-8. Every tenant-owned row carries `tenant_id` (+ `workspace_id` where scoped); deletion propagates to chunks, embeddings, indexes, and object storage across all embedding profiles.
-
-## API Conventions (canonical: `docs/API_Contracts.md`, ADR-009)
-
-- Base path `/api/v1`; errors are RFC 7807 `ProblemDetails` with `requestId`; `X-Request-Id` on every response.
-- Cursor pagination for high-cardinality lists; `Idempotency-Key` on retry-sensitive writes.
-- OpenAPI in `openapi/` is the machine-readable contract; update it with any endpoint change.
+| Topic (former section) | Skill | Load when |
+|---|---|---|
+| Technology Stack (MVP, per ADRs) | `rag-tech-stack` | choosing libraries/infra, build or deployment config, MVP-exclusion questions |
+| Module Map + Non-Negotiable Invariants | `rag-architecture` | writing/reviewing backend code, module/package placement, search, policy, audit, AI provider, tenant data |
+| API Conventions | `rag-api-conventions` | endpoint or `openapi/*.yaml` changes, error/pagination/idempotency design |
+| Verification + Workflow for Non-Trivial Changes | `rag-change-workflow` | changes touching security, schema, RAG behavior, architecture, or >3 files; verifying doc/OpenAPI changes |
 
 ## Rule Layers (precedence)
 
@@ -83,27 +56,7 @@ Three layers, most authoritative first:
    - `.cursor/rules/common/` — cross-cutting workflow, review, security
 
 Do not restate rules from these layers here or in code comments.
-Tool note: Cursor auto-attaches `.cursor/rules/*.mdc`; `.claude/rules/` applies in Claude Code and compatible agents.
-
-## Verification
-
-No build files exist yet. Once implementation starts, the build tool
-config in the repository is authoritative (Gradle expected per
-Module_Boundaries). Until then, doc changes are verified by:
-
-- OpenAPI parses (`openapi/*.yaml`)
-- Cross-doc consistency grep (table names, ADR references, stale terms)
-- Mermaid diagrams render
-
-## Workflow for Non-Trivial Changes
-
-For changes touching security, schema, RAG behavior, architecture, or >3 files:
-
-1. Read governing BRD/NFR/PRD/ADR sections first.
-2. Plan before editing; state assumptions and open decisions.
-3. Implement the smallest coherent vertical slice.
-4. Update `openapi/`, ADRs, or architecture docs when contracts or decisions change — new architectural decisions require a new ADR in `docs/adr/`, never silent edits to accepted ones.
-5. No opportunistic refactoring of unrelated files.
+Tool note: Cursor auto-attaches `.cursor/rules/*.mdc`; `.claude/rules/` applies in Claude Code and compatible agents; `.agents/skills/` loads on demand via the Skills table above.
 
 ## Protected Rules
 
