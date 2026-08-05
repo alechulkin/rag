@@ -25,10 +25,9 @@ in [Solution_Architecture.md §8](Solution_Architecture.md) and
 [Module_Boundaries.md §9](Module_Boundaries.md); this plan does not restate
 them, it operationalizes them.
 
-> **Status:** DRAFT — awaiting sign-off, see [§7](#7-sign-off). Implementation
-> of a slice must not begin before this plan is approved. Note: the
-> `foundation-slice` OpenSpec change is already **proposed** (66 tasks, none
-> started) and is blocked on this sign-off.
+> **Status:** APPROVED — signed off 2026-08-05, see [§7](#7-sign-off).
+> `foundation-slice` OpenSpec change is **proposed** (66 tasks, none started)
+> and may begin implementation.
 
 ---
 
@@ -226,7 +225,7 @@ size), each producing the canonical spec doc from its prompt in
 
 | # | Slice | OpenSpec change | Spec doc | Key modules | Status |
 |---|-------|-----------------|----------|-------------|--------|
-| 1 | Foundation | `foundation-slice` | `docs/specs/01_Foundation_Spec.md` | `policy`, `audit`, `search`, `ai.provider` (stubs), `admin` (bootstrap), `web`, `adapters.identity` | ✳ proposed (66 tasks, 0 done) — implementation blocked on [§7](#7-sign-off) |
+| 1 | Foundation | `foundation-slice` | `docs/specs/01_Foundation_Spec.md` | `policy`, `audit`, `search`, `ai.provider` (stubs), `admin` (bootstrap), `web`, `adapters.identity` | ✳ proposed (66 tasks, 0 done) — unblocked; implementation may begin |
 | 2 | Ingestion | `ingestion-slice` | `docs/specs/02_Ingestion_Spec.md` | `documents` (all sub-packages), `worker.runtime`, `adapters.objectstorage` | ☐ |
 
 > **Ingestion-slice prerequisite:** make `tools/benchmark/` harness runnable,
@@ -426,13 +425,12 @@ SAD §9.2).
 
 ## 7. Sign-off
 
-This plan governs MVP delivery. Implementation of a slice — including the
-already-proposed `foundation-slice` OpenSpec change — must not begin until the
-plan is signed off.
+This plan governs MVP delivery. Signed off below; slice implementation
+(including the already-proposed `foundation-slice` OpenSpec change) may proceed.
 
 | Role | Name | Decision | Date |
 |------|------|----------|------|
-| Product owner | — | ☐ pending | — |
-| Tech lead | — | ☐ pending | — |
+| Product owner | Alex Chulkin | ☑ approved | 2026-08-05 |
+| Tech lead | Alex Chulkin | ☑ approved | 2026-08-05 |
 
-**Sign-off notes:** —
+**Sign-off notes:** Same person holds PO and TL; dual role acknowledged.
