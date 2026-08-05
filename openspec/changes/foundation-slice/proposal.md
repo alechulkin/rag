@@ -4,7 +4,7 @@ Repository is documentation-only today. Foundation slice is track 1 (SAD §8, Mo
 
 ## What Changes
 
-- Add single Gradle module with package tree per Module_Boundaries §2; Spring Boot profiles `api` and `worker` as separate JVMs (ADR-001).
+- Add single Gradle module with package tree per Module_Boundaries §2; Spring Boot profiles `api` and `worker` as separate JVMs (ADR-001); activate the staged `backend-verify` CI job as soon as the Gradle wrapper and required verification tasks exist.
 - Add Docker Compose stack: PostgreSQL 16 + pgvector, Keycloak, MinIO, backend (`api` + `worker`), frontend shell.
 - Update `docs/Database_Schema.md` §2.1/§9.1/§9.2 directly (canonical edit, not a deferred sync) to add `tenants.jit_email_domains` and to move the canary FK chain into the foundation-slice migration list.
 - Add Flyway V1 for Database_Schema §9.1 foundation tables plus the seven-table canary FK chain, including `access_policies` deny rows so "forbidden collection" is a persisted fact (resolution **a**, extended — see design).
@@ -34,7 +34,7 @@ Repository is documentation-only today. Foundation slice is track 1 (SAD §8, Mo
 
 ## Impact
 
-- **New code**: entire backend (`src/main/java/...`), frontend shell, Flyway migrations, Docker Compose, Gradle build, CI workflow stubs.
+- **New code**: entire backend (`src/main/java/...`), frontend shell, Flyway migrations, Docker Compose, Gradle build, and active backend CI verification.
 - **New spec doc**: `docs/specs/01_Foundation_Spec.md`.
 - **Existing docs edited in this change**: `docs/Database_Schema.md` §2.1 (`tenants.jit_email_domains`), §9.1/§9.2 (canary table set moved into foundation slice).
 - **APIs**: `GET /api/v1/workspaces` plus four bootstrap endpoints per PRD Admin §8; all in `openapi/admin.yaml` with Idempotency-Key on writes and in-transaction audit per PRD Admin §9.

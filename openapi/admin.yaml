@@ -44,8 +44,7 @@ paths:
                         workspaceId: { type: string }
                         name: { type: string }
                   nextCursor:
-                    type: string
-                    nullable: true
+                    type: [string, 'null']
 components:
   securitySchemes:
     bearerAuth:

@@ -19,7 +19,7 @@ paths:
           in: path
           required: true
           schema: { type: string }
-        - $ref: './common.yaml#/components/headers/Idempotency-Key'
+        - $ref: './common.yaml#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -119,7 +119,7 @@ paths:
                     type: array
                     items: { type: string }
                   createdAt: { type: string, format: date-time }
-                  deletedAt: { type: string, format: date-time, nullable: true }
+                  deletedAt: { type: [string, 'null'], format: date-time }
         '404':
           description: Not found
           headers:

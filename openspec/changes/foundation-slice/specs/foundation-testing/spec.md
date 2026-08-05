@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+<!-- trace: FND-2 FND-3 FND-5 FND-6 FND-7 OBS-AC1 OBS-AC7 OBS-AC8 -->
+
 ### Requirement: ArchUnit tests as first deliverable
 
 Test suite SHALL include ArchUnit tests covering all nine CI-blocking walls: provider SDK, search query, documents mgmt/pipeline, api-profile worker-domain import, AllowedFilterSet filter-forgery, audit sole-writer, entity boundary, web.dto dependency, and SearchReader/SearchWriter caller restrictions. These tests MUST pass before domain or endpoint code merges.

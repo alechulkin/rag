@@ -8,11 +8,12 @@
 ## 2. Project Skeleton
 
 - [ ] 2.1 Create Gradle build (Java 21, Spring Boot) with single module and dependency set (Flyway, Spring Security OAuth2 Resource Server, Testcontainers, ArchUnit, pgvector JDBC)
-- [ ] 2.2 Scaffold package tree per Module_Boundaries §2: `documents.pipeline`, `evaluation`, `worker.runtime` (NOT `worker.pipeline` / `worker.eval`)
-- [ ] 2.3 Configure Spring profiles `api` and `worker` with profile-specific `@Configuration` and component scanning boundaries
-- [ ] 2.4 Add `application-api.yml` and `application-worker.yml` with PostgreSQL, Keycloak issuer, MinIO placeholders
-- [ ] 2.5 Create Docker Compose: PostgreSQL 16 + pgvector, Keycloak (realm import), MinIO, api service, worker service, frontend shell
-- [ ] 2.6 Scaffold React + TypeScript frontend shell with OIDC redirect login per Design_System.md
+- [ ] 2.2 Activate `.github/workflows/ci.yml` `backend-verify` immediately after the Gradle wrapper and required tasks exist; configure lint, dependency scan, test, JaCoCo coverage per `docs/qa/coverage-policy.md`, build, and evidence commands so this job passes before domain implementation starts
+- [ ] 2.3 Scaffold package tree per Module_Boundaries §2: `documents.pipeline`, `evaluation`, `worker.runtime` (NOT `worker.pipeline` / `worker.eval`)
+- [ ] 2.4 Configure Spring profiles `api` and `worker` with profile-specific `@Configuration` and component scanning boundaries
+- [ ] 2.5 Add `application-api.yml` and `application-worker.yml` with PostgreSQL, Keycloak issuer, MinIO placeholders
+- [ ] 2.6 Create Docker Compose: PostgreSQL 16 + pgvector, Keycloak (realm import), MinIO, api service, worker service, frontend shell
+- [ ] 2.7 Scaffold React + TypeScript frontend shell with OIDC redirect login per Design_System.md
 
 ## 3. Shared Value Objects and Exceptions
 
@@ -34,7 +35,7 @@
 - [ ] 4.7 Implement ArchUnit test: `@Entity` classes referenced only within owning package (entity-boundary wall)
 - [ ] 4.8 Implement ArchUnit test: `web.dto` never imported by `shared.model` or any domain package
 - [ ] 4.9 Implement ArchUnit test: `SearchReader` called only by `rag`; `SearchWriter` called only by `documents.pipeline`
-- [ ] 4.10 Wire all nine ArchUnit tests into CI workflow; verify build fails on intentional violation of each
+- [ ] 4.10 Verify the active `backend-verify` job runs all nine ArchUnit tests through `./gradlew test`; confirm each intentional wall violation fails the CI build
 
 ## 5. Database and Domain Model
 
@@ -86,6 +87,8 @@
 - [ ] 9.7 Integration: every bootstrap CUD endpoint commits its audit event in the same transaction as its mutation
 - [ ] 9.8 Integration: canary chunk seeded with valid FK chain and persisted deny rows, detectable by search canary-check hook
 - [ ] 9.9 Docker Compose smoke: full stack healthy, login + workspace list end-to-end
+- [ ] 9.10 Configure JaCoCo thresholds per `docs/qa/coverage-policy.md` (70% aggregate, 90% policy/audit/search packages); wire `jacocoTestCoverageVerification` into `./gradlew check`
+- [ ] 9.11 Scaffold Playwright E2E project under `frontend/e2e/` with journey #1 (login) per `docs/qa/e2e-journeys.md`
 
 ## 10. Verification
 

@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+<!-- trace: FND-4 FND-6 FND-7 OBS-AC1 OBS-AC7 OBS-AC8 -->
+
 ### Requirement: Flyway V1 foundation tables
 
 Flyway migration V1 SHALL create all tables defined in Database_Schema §9.1 exactly: `tenants`, `workspaces`, `users`, `memberships`, `membership_capabilities`, `perm_cache_version`, `provider_configs`, `workspace_ai_policies`, `provider_budget_counters`, `audit_events`.

@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+<!-- trace: FND-5 FND-6 FND-7 FND-8 -->
+
 ### Requirement: Policy module stub with resolvePermissions and callProvider
 
 The `policy` module SHALL expose `resolvePermissions(userId, workspaceId, scope)` returning `AllowedFilterSet` and `callProvider(ProviderRequest)` with fail-closed default (deny when validation or budget store unavailable). Permission cache TTL MUST be ≤ 60 seconds with `LISTEN/NOTIFY` invalidation via `perm_cache_version` row.

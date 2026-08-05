@@ -1,0 +1,27 @@
+[project]
+name = "rag-benchmark"
+version = "0.1.0"
+description = "pgvector benchmark harness (dev/CI tooling only, ADR-017)"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.4",
+  "mypy>=1.8",
+]
+# Runtime deps added when harness is implemented (ingestion slice):
+# psycopg[binary], pgvector, sentence-transformers, pyyaml, numpy
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]

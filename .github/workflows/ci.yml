@@ -1,0 +1,160 @@
+# CI — the loop nobody can skip.
+# Mirrors the local verification gates deterministically: if it isn't green
+# here, it isn't done, regardless of what any agent or human claims.
+#
+# Repo is documentation-first (no build files yet). Active gates cover the
+# docs/contract surface per the rag-change-workflow skill + NFR §7.3 (secret
+# scanning). The backend/frontend battery (NFR §9.1, §7.1, §7.2) is staged at
+# the bottom, commented, and MUST be enabled in the foundation-slice change —
+# it is part of that slice's Definition of Done (docs/mvp-capability-plan.md §5).
+
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0 # full history for secret scanning
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      # --- static, fast, deterministic ---
+
+      - name: OpenAPI lint (3.1-aware; errors block, warnings reported)
+        run: npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal
+
+      - name: OpenSpec strict validation
+        run: npx --yes @fission-ai/openspec@1.7.0 validate --all --strict
+
+      - name: Relative markdown links resolve
+        run: node scripts/check-doc-links.mjs
+
+      - name: Traceability chain (and freshness of generated report)
+        run: |
+          node scripts/check-traceability.mjs --write
+          node scripts/check-traceability.mjs --check-fresh
+
+      - name: Golden seed schema validation
+        run: node scripts/check-golden-seed.mjs
+
+      - name: Mermaid diagrams render
+        run: |
+          echo '{"args":["--no-sandbox","--disable-gpu"],"executablePath":"/usr/bin/google-chrome"}' > /tmp/puppeteer-ci.json
+          mkdir -p /tmp/mmd-out
+          found=0
+          result=0
+          while IFS= read -r -d '' f; do
+            found=1
+            echo "rendering: $f"
+            npx --yes @mermaid-js/mermaid-cli@11.16.0 -p /tmp/puppeteer-ci.json \
+              -i "$f" -o "/tmp/mmd-out/$(basename "$f")" || result=1
+          done < <(grep -rlZ '```mermaid' --include='*.md' docs *.md 2>/dev/null || true)
+          if [ "$found" -eq 0 ]; then echo "no mermaid blocks found"; exit 0; fi
+          exit "$result"
+
+      - name: Secret scanning (gitleaks)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Org repos need GITLEAKS_LICENSE; personal repos run free.
+
+  # ---------------------------------------------------------------------------
+  # backend-verify — ENABLE IN THE FOUNDATION SLICE (blocked on it: DoD §5.6).
+  # Targets from NFR §9.1 (pipeline ≤ 10 min), §7.1 (lint gates), §7.2
+  # (coverage: ≥70% line backend, ≥90% policy/audit/search), §7.3 (SAST +
+  # dependency scan), Module_Boundaries §9 step 1 (ArchUnit CI-blocking).
+  # ---------------------------------------------------------------------------
+  # backend-verify:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-java@v4
+  #       with:
+  #         distribution: temurin
+  #         java-version: 21
+  #     - uses: gradle/actions/setup-gradle@v4
+  #
+  #     # --- static, fast, deterministic ---
+  #     - name: Lint (Checkstyle + SpotBugs + Error Prone)
+  #       run: ./gradlew checkstyleMain checkstyleTest spotbugsMain
+  #     - name: Dependency vulnerability scan (fail on high+)
+  #       run: ./gradlew dependencyCheckAnalyze
+  #
+  #     # --- test battery (ArchUnit walls run inside the test task) ---
+  #     - name: Unit + integration tests (Testcontainers) + ArchUnit walls
+  #       run: ./gradlew test
+  #     - name: Coverage thresholds (JaCoCo: 70% line, 90% policy/audit/search)
+  #       run: ./gradlew jacocoTestCoverageVerification
+  #     - name: PR coverage comment
+  #       if: github.event_name == 'pull_request'
+  #       uses: madrapps/jacoco-report@v1.6.1
+  #       with:
+  #         paths: ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
+  #         token: ${{ secrets.GITHUB_TOKEN }}
+  #         min-coverage-overall: 70
+  #         min-coverage-changed-files: 70
+  #
+  #     # --- production build ---
+  #     - name: Build (boot jar + SBOM)
+  #       run: ./gradlew build -x test
+  #
+  #     # --- evidence ---
+  #     - name: Upload test + coverage reports
+  #       if: always()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: backend-evidence
+  #         path: |
+  #           build/reports/tests/
+  #           build/reports/jacoco/
+  #         if-no-files-found: ignore
+  #
+  # frontend-verify:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 22
+  #         cache: npm
+  #         cache-dependency-path: frontend/package-lock.json
+  #     - run: npm ci
+  #       working-directory: frontend
+  #     - name: Lint
+  #       run: npm run lint
+  #       working-directory: frontend
+  #     - name: Typecheck
+  #       run: npx tsc --noEmit
+  #       working-directory: frontend
+  #     - name: Unit tests + coverage
+  #       run: npm run test:coverage
+  #       working-directory: frontend
+  #     - name: Install Playwright browsers
+  #       run: npx playwright install --with-deps chromium
+  #       working-directory: frontend
+  #     - name: E2E tests
+  #       run: npm run test:e2e
+  #       working-directory: frontend
+  #     - name: Build
+  #       run: npm run build
+  #       working-directory: frontend
+  #     - name: Upload E2E report
+  #       if: always()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: playwright-report
+  #         path: frontend/playwright-report/
+  #         if-no-files-found: ignore

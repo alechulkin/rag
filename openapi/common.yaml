@@ -15,8 +15,12 @@ components:
       description: Correlation ID propagated end-to-end.
       schema:
         type: string
-    Idempotency-Key:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
       description: Optional idempotency key for retry-sensitive writes.
+      required: false
       schema:
         type: string
   schemas:
@@ -39,7 +43,6 @@ components:
       type: object
       properties:
         nextCursor:
-          type: string
-          nullable: true
+          type: [string, 'null']
     ErrorResponse:
       $ref: '#/components/schemas/ProblemDetails'

@@ -39,8 +39,7 @@ paths:
                       type: array
                       items: { type: string }
                 cursor:
-                  type: string
-                  nullable: true
+                  type: [string, 'null']
                 limit:
                   type: integer
                   minimum: 1
@@ -69,8 +68,7 @@ paths:
                         score: { type: number }
                         snippet: { type: string }
                   nextCursor:
-                    type: string
-                    nullable: true
+                    type: [string, 'null']
         '400':
           description: Bad request
           headers:

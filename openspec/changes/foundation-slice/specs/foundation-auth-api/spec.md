@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+<!-- trace: FND-3 FND-4 -->
+
 ### Requirement: OIDC JWT validation as OAuth2 Resource Server
 
 The api profile SHALL validate JWT tokens via Spring Security OAuth2 Resource Server. Unauthenticated requests to protected endpoints MUST receive 401. Invalid or expired tokens MUST be rejected.

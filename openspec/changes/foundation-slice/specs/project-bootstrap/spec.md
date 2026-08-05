@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+<!-- trace: FND-1 -->
+
 ### Requirement: Single Gradle module with canonical package tree
 
 The project SHALL use one Gradle module with Java package layout matching Module_Boundaries §2, including hard-walled packages (`policy`, `audit`, `search`, `ai.provider`), domain packages, and supporting packages (`web`, `worker.runtime`, `adapters`).
@@ -9,6 +11,17 @@ The project SHALL use one Gradle module with Java package layout matching Module
 - **WHEN** the Gradle project is built
 - **THEN** source packages exist under the canonical tree defined in Module_Boundaries §2
 - **AND** no additional logical modules or separate Gradle subprojects are created
+
+### Requirement: Backend verification is active with project bootstrap
+
+The foundation slice SHALL activate the staged `backend-verify` job in `.github/workflows/ci.yml` in the same change that introduces the Gradle wrapper and required verification tasks. The job MUST run backend lint, dependency vulnerability scanning, tests, coverage threshold verification, production build, and evidence upload. It MUST NOT remain commented or be deferred until domain, persistence, API, or frontend implementation.
+
+#### Scenario: Gradle bootstrap activates backend CI
+
+- **WHEN** the Gradle skeleton is added during foundation-slice implementation
+- **THEN** `backend-verify` is an active GitHub Actions job
+- **AND** every configured backend verification command executes successfully
+- **AND** any failed lint, dependency scan, test, coverage, or build gate blocks merge
 
 ### Requirement: Spring Boot profiles api and worker as separate JVMs
 

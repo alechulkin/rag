@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+<!-- trace: FND-2 -->
+
 ### Requirement: Provider SDK import wall
 
 ArchUnit SHALL enforce that provider SDK classes are imported only inside the `ai.provider.adapter` package. Any import outside that package MUST fail the CI build.

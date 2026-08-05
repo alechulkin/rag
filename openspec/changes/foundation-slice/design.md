@@ -21,6 +21,7 @@ Repository is documentation-only. Foundation slice (SAD §8 track 1, Module_Boun
 **Goals:**
 
 - Single Gradle module with package tree per Module_Boundaries §2.
+- Activate `.github/workflows/ci.yml` `backend-verify` with the Gradle skeleton; backend lint, dependency scan, tests, coverage verification, build, and evidence upload must be real CI gates before domain code lands.
 - Separate `api` and `worker` JVMs via Spring profiles (ADR-001).
 - Docker Compose: PostgreSQL 16 + pgvector, Keycloak, MinIO, backend, frontend shell.
 - `shared.model` + `shared.exception` foundation VOs (Shared_Abstractions §398): `AllowedFilterSet`, `Scope`, `AuditEvent` + `AuditPayload`, `RequestContext` (api only), `DomainException` hierarchy — built before the ArchUnit walls that depend on them (filter-forgery, entity boundary).
@@ -54,6 +55,8 @@ Pull exact Database_Schema definitions for: `collections`, `documents`, `documen
 Alternative (b) — hook-only, no row — rejected: leaves the P1 detection path untestable until slice 2 and gives "forbidden" no persisted meaning.
 
 ### D2 — ArchUnit first, CI-blocking from first commit, nine walls
+
+The existing staged `backend-verify` block in `.github/workflows/ci.yml` is activated in the same commit that introduces the Gradle wrapper and verification tasks. Activation does not wait for domain, persistence, API, or frontend work. Before domain code lands, the job's `test` task includes all nine ArchUnit walls and blocks merge on violations.
 
 Nine rules written before domain code lands (Module_Boundaries §9 step 1 + Shared_Abstractions §379–390):
 
@@ -164,7 +167,7 @@ React + TypeScript SPA: OIDC redirect login, post-login workspace list page call
 
 ## Migration Plan
 
-1. Land Gradle skeleton.
+1. Land Gradle skeleton and activate `.github/workflows/ci.yml` `backend-verify` with working lint, dependency scan, test, coverage, build, and evidence tasks.
 2. Build `shared.model` + `shared.exception` foundation VOs (required by walls 5 and 7).
 3. Land all nine ArchUnit tests (must pass on empty stubs plus the shared VOs).
 4. Flyway V1 + Testcontainers migration test (§9.1 tables + seven-table canary chain + `jit_email_domains`).
