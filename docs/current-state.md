@@ -2,6 +2,31 @@
 
 Running log of what the agent last did in this repo. Newest entry first. See [.cursor/rules/common/current-state.md](../.cursor/rules/common/current-state.md) for the maintenance rule.
 
+## 2026-08-05T21:10:00+03:00
+
+- **Timestamp of last agent action:** 2026-08-05T21:10:00+03:00
+- **What was done by agent:**
+  - Added `scripts/check-red-green-evidence.mjs` and `scripts/check-handoff-fresh.mjs` (G4 slice evidence)
+  - Fixed `scripts/check-traceability.mjs` archive-awareness (`openspec/changes/archive/YYYY-MM-DD-<slice>/`)
+  - Noted per-slice golden-seed authoring rule in `docs/eval/README.md` lifecycle; updated `docs/checklists/quality-gates.md` planned-tooling section
+- **Current state:**
+  - G4 evidence scripts live; traceability no longer silently skips archived changes
+  - `foundation-slice` still active (not archived); red/green evidence files not yet written
+- **Next steps:** foundation-slice implementation; write red/green evidence before claiming G4
+- **Open questions / blockers:** cross-doc drift from Module_Boundaries §6 still unfixed (SAD §4.1 AV placement, BA §7.3.d, PRD §01 §11)
+
+## 2026-08-05T20:58:00+03:00
+
+- **Timestamp of last agent action:** 2026-08-05T20:58:00+03:00
+- **What was done by agent:**
+  - Added `docs/checklists/quality-gates.md` — G0–G8 gate checklist adapted from external finup template to this repo (Gradle/npm command sets, plan §5 DoD alignment, G0–G3 marked passed)
+  - Dropped template parts conflicting with plan §4 exclusions (CI-scheduled eval runs, TS eval harness) or lacking BRD/NFR backing (recordings, vision-verify, trajectory-eval)
+- **Current state:**
+  - Gate doc live; G4 references two planned scripts (`check-red-green-evidence.mjs`, `check-handoff-fresh.mjs`) owned by foundation slice
+  - Known limitation flagged: `check-traceability.mjs` not archive-aware — fix before archiving `foundation-slice`
+- **Next steps:** foundation-slice implementation; add the two planned scripts before first red run
+- **Open questions / blockers:** cross-doc drift from Module_Boundaries §6 still unfixed (SAD §4.1 AV placement, BA §7.3.d, PRD §01 §11)
+
 ## 2026-08-05T20:46:00+03:00
 
 - **Timestamp of last agent action:** 2026-08-05T20:46:00+03:00

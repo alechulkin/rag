@@ -48,7 +48,9 @@ from the test user (3 of 20 collections visible).
 ## Lifecycle
 
 1. **Now (docs phase):** edit `golden-seed.yaml`; CI validates schema.
-2. **Evaluation slice:** import seed into `golden_questions` / suite fixtures;
+2. **Per slice (G4):** add or confirm seed cases for that slice's new error
+   surface before archive (see [quality-gates.md](../checklists/quality-gates.md) G4).
+3. **Evaluation slice:** import seed into `golden_questions` / suite fixtures;
    promotion workflow (PRD §04 §5.4) adds cases from live chat feedback.
-3. **Stale handling:** soft-delete of source documents marks dependent cases
+4. **Stale handling:** soft-delete of source documents marks dependent cases
    `stale` (EVAL-AC5).

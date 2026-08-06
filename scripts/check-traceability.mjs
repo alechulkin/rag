@@ -3,6 +3,10 @@
  * Traceability checker — maps MVP capability-plan matrix row IDs to OpenSpec
  * delta specs (phase docs) and optionally to @trace tags in test files (phase full).
  *
+ * Resolves each slice change from openspec/changes/<slice>/ first, then from
+ * openspec/changes/archive/YYYY-MM-DD-<slice>/ (newest date wins) so archiving
+ * does not silently drop enforcement.
+ *
  * Usage:
  *   node scripts/check-traceability.mjs [--phase docs|full] [--write]
  *   node scripts/check-traceability.mjs --check-fresh [--phase docs|full]
@@ -21,6 +25,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PLAN = join(ROOT, 'docs/mvp-capability-plan.md');
 const REPORT = join(ROOT, 'docs/qa/traceability-report.md');
+const CHANGES_DIR = join(ROOT, 'openspec/changes');
+const ARCHIVE_DIR = join(CHANGES_DIR, 'archive');
 
 const ROW_ID_RE =
   /\b(FND-\d+|ING-AC\d+|SRCH-AC\d+|CHAT-AC\d+|EVAL-AC\d+|ADM-AC\d+|OBS-AC\d+|RET-(?:DOC|CHAT|AUDIT))\b/g;
@@ -38,11 +44,19 @@ const args = process.argv.slice(2);
 const phase = args.includes('--phase')
   ? args[args.indexOf('--phase') + 1]
   : 'docs';
+const sliceArg = args.includes('--slice')
+  ? args[args.indexOf('--slice') + 1]
+  : null;
 const checkFresh = args.includes('--check-fresh');
 const writeReport = args.includes('--write') || checkFresh || !args.includes('--stdout-only');
 
 if (!['docs', 'full'].includes(phase)) {
   console.error('Invalid --phase; use docs or full');
+  process.exit(1);
+}
+
+if (args.includes('--slice') && !sliceArg) {
+  console.error('Usage: node scripts/check-traceability.mjs --slice <slice>');
   process.exit(1);
 }
 
@@ -56,6 +70,27 @@ function walk(dir, pred) {
     else if (pred(path)) out.push(path);
   }
   return out;
+}
+
+/** Active change dir, else newest matching archive/YYYY-MM-DD-<change>. */
+function resolveChangeDir(change) {
+  const active = join(CHANGES_DIR, change);
+  if (existsSync(active) && statSync(active).isDirectory()) {
+    return { dir: active, location: 'active' };
+  }
+  if (!existsSync(ARCHIVE_DIR)) return null;
+  const matches = readdirSync(ARCHIVE_DIR)
+    .filter((name) => {
+      const full = join(ARCHIVE_DIR, name);
+      return (
+        statSync(full).isDirectory() &&
+        (name === change || name.endsWith(`-${change}`))
+      );
+    })
+    .sort()
+    .reverse();
+  if (!matches.length) return null;
+  return { dir: join(ARCHIVE_DIR, matches[0]), location: 'archive' };
 }
 
 function parsePlanMatrix(planText) {
@@ -103,50 +138,85 @@ function findTestTraces() {
   return traces;
 }
 
+function normalizeSliceInput(input) {
+  if (!input) return null;
+  const v = String(input).trim();
+  if (!v) return null;
+  return v.endsWith('-slice') ? v : v;
+}
+
+function sliceMatches(slice, input) {
+  const v = normalizeSliceInput(input);
+  if (!v) return false;
+  const candidates = new Set([
+    slice.change,
+    slice.name,
+    slice.change.replace(/-slice$/, ''),
+  ]);
+  return [...candidates].some((c) => c.toLowerCase() === v.toLowerCase());
+}
+
 const planText = readFileSync(PLAN, 'utf8');
-const slices = parsePlanMatrix(planText);
+let slices = parsePlanMatrix(planText);
+if (sliceArg) {
+  const filtered = slices.filter((s) => sliceMatches(s, sliceArg));
+  if (!filtered.length) {
+    console.error(`Unknown --slice "${sliceArg}". Expected one of:`);
+    for (const s of slices) {
+      console.error(`  - ${s.change} (${s.name})`);
+    }
+    process.exit(1);
+  }
+  slices = filtered;
+}
+
 const failures = [];
+const testTraces = phase === 'full' ? findTestTraces() : null;
 const lines = [
   '# Traceability Report',
   '',
   `Generated: ${new Date().toISOString()}`,
   `Phase: \`${phase}\``,
+  sliceArg ? `Slice: \`${sliceArg}\`` : null,
   '',
   'Source plan: [docs/mvp-capability-plan.md](../mvp-capability-plan.md) §1.',
   '',
-];
+].filter(Boolean);
 
 for (const slice of slices) {
   const change = slice.change;
-  const changeDir = join(ROOT, 'openspec/changes', change);
+  const resolved = resolveChangeDir(change);
   lines.push(`## ${slice.name} (\`${change}\`)`);
   lines.push('');
 
-  if (!existsSync(changeDir)) {
+  if (!resolved) {
     lines.push(`Status: **skipped** — OpenSpec change not proposed yet.`);
     lines.push(`Row IDs (${slice.ids.length}): ${slice.ids.join(', ') || 'none'}`);
     lines.push('');
     continue;
   }
 
-  const specTexts = readSpecTexts(changeDir);
+  const specTexts = readSpecTexts(resolved.dir);
   const specBlob = specTexts.join('\n');
   const missingInSpecs = slice.ids.filter((id) => !specBlob.includes(id));
+  const locNote =
+    resolved.location === 'archive'
+      ? ` (archived at \`${relative(ROOT, resolved.dir)}\`)`
+      : '';
 
   if (missingInSpecs.length > 0) {
     failures.push(
       `${change}: missing in specs — ${missingInSpecs.join(', ')}`,
     );
-    lines.push(`Status: **FAIL** — ${missingInSpecs.length} row ID(s) not cited in \`specs/**/spec.md\`.`);
+    lines.push(`Status: **FAIL** — ${missingInSpecs.length} row ID(s) not cited in \`specs/**/spec.md\`${locNote}.`);
     lines.push(`Missing: ${missingInSpecs.join(', ')}`);
   } else {
-    lines.push(`Status: **pass** — all ${slice.ids.length} row ID(s) cited in delta specs.`);
+    lines.push(`Status: **pass** — all ${slice.ids.length} row ID(s) cited in delta specs${locNote}.`);
   }
   lines.push(`Row IDs: ${slice.ids.join(', ') || 'none'}`);
   lines.push('');
 
   if (phase === 'full') {
-    const testTraces = findTestTraces();
     const missingInTests = slice.ids.filter((id) => !testTraces.has(id));
     lines.push('### Test @trace coverage');
     if (missingInTests.length > 0) {
