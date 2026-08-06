@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "description": "Minimum trusted Engineering Loop — deterministic gates for this repo. Docs win over agent prose. Blocking = exit 0 required. Advisory = feedback only.",
+  "blockingDocs": [
+    {
+      "id": "openapi-lint",
+      "blocking": true,
+      "phase": "docs",
+      "command": "npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal"
+    },
+    {
+      "id": "openspec-strict",
+      "blocking": true,
+      "phase": "docs",
+      "command": "npx --yes @fission-ai/openspec@1.7.0 validate --all --strict"
+    },
+    {
+      "id": "doc-links",
+      "blocking": true,
+      "phase": "docs",
+      "command": "node scripts/check-doc-links.mjs"
+    },
+    {
+      "id": "traceability-fresh",
+      "blocking": true,
+      "phase": "docs",
+      "command": "node scripts/check-traceability.mjs --check-fresh",
+      "notes": "Must NOT rewrite the report before checking. Regenerate locally with --write and commit."
+    },
+    {
+      "id": "golden-seed",
+      "blocking": true,
+      "phase": "docs",
+      "command": "node scripts/check-golden-seed.mjs"
+    },
+    {
+      "id": "verification-manifest",
+      "blocking": true,
+      "phase": "docs",
+      "command": "node scripts/check-verification-manifest.mjs"
+    },
+    {
+      "id": "slice-gates",
+      "blocking": true,
+      "phase": "docs",
+      "command": "node scripts/check-slice-gates.mjs",
+      "notes": "No-ops until a slice has evidence/*-run.json."
+    },
+    {
+      "id": "mermaid-render",
+      "blocking": true,
+      "phase": "docs",
+      "command": "CI mermaid-cli loop over docs/**/*.md (see .github/workflows/ci.yml)"
+    },
+    {
+      "id": "gitleaks",
+      "blocking": true,
+      "phase": "docs",
+      "command": "gitleaks/gitleaks-action in CI"
+    }
+  ],
+  "sliceClose": [
+    {
+      "id": "red-green-evidence",
+      "blocking": true,
+      "phase": "g4",
+      "command": "node scripts/check-red-green-evidence.mjs --slice <slice>"
+    },
+    {
+      "id": "handoff-fresh",
+      "blocking": true,
+      "phase": "g4",
+      "command": "node scripts/check-handoff-fresh.mjs --slice <slice>"
+    },
+    {
+      "id": "remediation-ledger",
+      "blocking": true,
+      "phase": "g4",
+      "command": "node scripts/check-remediation-ledger.mjs --file openspec/changes/<slice>/evidence/remediation-ledger.md",
+      "notes": "Required when review findings exist; optional empty skip via absent file until first finding."
+    }
+  ],
+  "advisory": [
+    {
+      "id": "coderabbit",
+      "blocking": false,
+      "kind": "bot",
+      "command": "CodeRabbit PR review (.coderabbit.yaml)",
+      "notes": "Advisory only — must not block merge."
+    }
+  ],
+  "foundationPlus": [
+    {
+      "id": "backend-verify",
+      "blocking": true,
+      "phase": "foundation+",
+      "command": "./gradlew checkstyleMain checkstyleTest spotbugsMain dependencyCheckAnalyze test jacocoTestCoverageVerification build",
+      "notes": "Enable commented job in .github/workflows/ci.yml in same commit as Gradle wrapper (foundation-slice DoD)."
+    },
+    {
+      "id": "frontend-verify",
+      "blocking": true,
+      "phase": "foundation+",
+      "command": "cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm run test:e2e && npm run build",
+      "notes": "Enable commented frontend-verify job when frontend tree lands."
+    }
+  ],
+  "humanGates": [
+    {
+      "id": "non-author-approver",
+      "kind": "human",
+      "blocking": true,
+      "command": "GitHub branch protection: ≥1 approving review from non-author (NFR §7.1)",
+      "notes": "See docs/qa/branch-protection.md. CODEOWNERS is repo hint; protection is org setting."
+    },
+    {
+      "id": "pr-template-dod",
+      "kind": "human",
+      "blocking": true,
+      "command": "Complete .github/pull_request_template.md DoD + verification evidence"
+    }
+  ],
+  "ciEvidence": {
+    "artifactName": "docs-verify-evidence",
+    "paths": [
+      "docs/qa/traceability-report.md",
+      "docs/qa/verification-manifest.json",
+      "openspec/changes/*/evidence/",
+      "openspec/changes/archive/*/evidence/"
+    ],
+    "notes": "CI uploads these when present. Red/green JSON must be produced by recorded commands; validators check shape + ordering, not cryptographic provenance. Prefer CI-generated artifacts once backend-verify exists."
+  },
+  "openspecApply": {
+    "rule": "Never mark an OpenSpec task [x] until focused verification for that task has been run and recorded in the session output.",
+    "perTaskMinimum": [
+      "Relevant unit/integration/ArchUnit/doc check for the task surface",
+      "Paste decisive exit line into the PR Verification evidence section or evidence notes"
+    ]
+  }
+}

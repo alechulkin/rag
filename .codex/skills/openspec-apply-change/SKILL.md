@@ -74,21 +74,27 @@ Implement tasks from an OpenSpec change.
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
-   - Mark task complete in the tasks file: `- [ ]` → `- [x]`
+   - **Verify before checkbox:** run the smallest focused check that proves
+     this task (unit/ArchUnit/integration/doc command). Paste the decisive
+     exit line in session output. If no command can prove the task yet, leave
+     it `[ ]` and note the blocker — never mark complete on faith.
+   - Only then mark task complete in the tasks file: `- [ ]` → `- [x]`
    - Continue to next task
 
    **Pause if:**
    - Task is unclear → ask for clarification
    - Implementation reveals a design issue → suggest updating artifacts
    - Error or blocker encountered → report and wait for guidance
+   - Verification failed → fix or record FIND in remediation ledger; do not `[x]`
    - User interrupts
 
 7. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
+   - Verification commands run + exit status
    - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
+   - If all done: run slice gates (`node scripts/check-slice-gates.mjs --slice <name>`), suggest archive
    - If paused: explain why and wait for guidance
 
 **Output During Implementation**
@@ -98,10 +104,12 @@ Implement tasks from an OpenSpec change.
 
 Working on task 3/7: <task description>
 [...implementation happening...]
+Verify: <command> → <decisive exit line>
 ✓ Task complete
 
 Working on task 4/7: <task description>
 [...implementation happening...]
+Verify: <command> → <decisive exit line>
 ✓ Task complete
 ```
 
@@ -115,11 +123,11 @@ Working on task 4/7: <task description>
 **Progress:** 7/7 tasks complete ✓
 
 ### Completed This Session
-- [x] Task 1
-- [x] Task 2
+- [x] Task 1 — verified by: <command>
+- [x] Task 2 — verified by: <command>
 ...
 
-All tasks complete! Ready to archive this change.
+All tasks complete! Run slice gates, then archive this change.
 ```
 
 **Output On Pause (Issue Encountered)**
@@ -148,9 +156,10 @@ What would you like to do?
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
-- Update task checkbox immediately after completing each task
+- **Never** update task checkbox until focused verification for that task passed
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- Follow `docs/qa/verification-manifest.json` (`openspecApply` section)
 
 **Fluid Workflow Integration**
 

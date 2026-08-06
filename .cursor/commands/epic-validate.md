@@ -1,22 +1,7 @@
 ---
-description: Validate epic readiness, dependencies, and coordination policy.
+description: DISABLED — epic coordination script missing; use OpenSpec + quality gates.
 ---
 
-# /epic-validate
+# /epic-validate — DISABLED
 
-Validate a single epic issue before publishing or review handoff.
-
-```bash
-node scripts/github-coordination.js validate <issue-number> --repo <owner/repo>
-```
-
-What this checks:
-
-1. Coordination state exists and is parseable.
-2. Validation state is satisfied by policy.
-3. Declared dependencies are closed.
-4. The epic is ready for the next workflow stage.
-
-Compatibility aliases:
-
-- `/quality-gate`
+See [.cursor/commands/epic-DISABLED.md](epic-DISABLED.md).

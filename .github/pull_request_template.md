@@ -36,5 +36,7 @@ Tick only what applies to this PR (docs-phase PRs skip implementation-only items
 
 ## Reviewer
 
-- [ ] ≥ 1 **non-author** approver (NFR §7.1)
+- [ ] ≥ 1 **non-author** approver (NFR §7.1) — GitHub approval, not self-review
+- [ ] Branch protection / CODEOWNERS satisfied when enabled ([docs/qa/branch-protection.md](../docs/qa/branch-protection.md))
 - [ ] Schema migration PR: separate review by DB-savvy reviewer when applicable (NFR §9.8)
+- [ ] Review findings recorded in `openspec/changes/<slice>/evidence/remediation-ledger.md` when any confirmed finding exists; all `open` dispositions closed or escalated before merge

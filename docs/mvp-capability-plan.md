@@ -26,8 +26,9 @@ in [Solution_Architecture.md §8](Solution_Architecture.md) and
 them, it operationalizes them.
 
 > **Status:** APPROVED — signed off 2026-08-05, see [§7](#7-sign-off).
-> `foundation-slice` OpenSpec change is **proposed** (66 tasks, none started)
-> and may begin implementation.
+> `foundation-slice` OpenSpec change is **proposed** (69 tasks, none started)
+> and may begin implementation. Minimum trusted loop (docs-phase) established
+> 2026-08-06 — see `docs/qa/verification-manifest.json`.
 
 ---
 
@@ -225,7 +226,7 @@ size), each producing the canonical spec doc from its prompt in
 
 | # | Slice | OpenSpec change | Spec doc | Key modules | Status |
 |---|-------|-----------------|----------|-------------|--------|
-| 1 | Foundation | `foundation-slice` | `docs/specs/01_Foundation_Spec.md` | `policy`, `audit`, `search`, `ai.provider` (stubs), `admin` (bootstrap), `web`, `adapters.identity` | ✳ proposed (66 tasks, 0 done) — unblocked; implementation may begin |
+| 1 | Foundation | `foundation-slice` | `docs/specs/01_Foundation_Spec.md` | `policy`, `audit`, `search`, `ai.provider` (stubs), `admin` (bootstrap), `web`, `adapters.identity` | ✳ proposed (69 tasks, 0 done) — unblocked; implementation may begin |
 | 2 | Ingestion | `ingestion-slice` | `docs/specs/02_Ingestion_Spec.md` | `documents` (all sub-packages), `worker.runtime`, `adapters.objectstorage` | ☐ |
 
 > **Ingestion-slice prerequisite:** make `tools/benchmark/` harness runnable,
@@ -353,10 +354,13 @@ requirement doc).
 ### 6.1 Completed (docs / scaffolds)
 
 1. **CI pipeline — docs phase live.** `.github/workflows/ci.yml` runs:
-   OpenAPI 3.1 lint (redocly, errors block), OpenSpec strict validation,
-   relative-link check (`scripts/check-doc-links.mjs`), traceability
-   freshness, golden-seed validation, Mermaid render, secret scanning
-   (gitleaks).
+   verification-manifest check, OpenAPI 3.1 lint (redocly, errors block),
+   OpenSpec strict validation, relative-link check (`scripts/check-doc-links.mjs`),
+   traceability freshness (**no rewrite-before-check**), golden-seed validation,
+   slice G4 gates when evidence exists (`scripts/check-slice-gates.mjs`),
+   Mermaid render, secret scanning (gitleaks), evidence artifact upload.
+   Human merge gate documented in `docs/qa/branch-protection.md` +
+   `.github/CODEOWNERS` (replace `@OWNER`).
 2. **PR template.** [.github/pull_request_template.md](../.github/pull_request_template.md)
    references plan §5 DoD checklist, matrix row IDs, verification evidence,
    rollback note, and reviewer requirements (NFR §7.1, §9.7).

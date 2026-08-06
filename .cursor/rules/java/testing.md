@@ -122,7 +122,7 @@ Use descriptive names with `@DisplayName`:
 
 ## Coverage
 
-- Target 80%+ line coverage
+- Target coverage per `docs/qa/coverage-policy.md` (NFR §7.2: ≥70% backend MVP aggregate; ≥90% policy/audit/search)
 - Use JaCoCo for coverage reporting
 - Focus on service and domain logic — skip trivial getters/config classes
 

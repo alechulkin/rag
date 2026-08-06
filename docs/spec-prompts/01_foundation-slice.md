@@ -4,6 +4,11 @@ Create `docs/specs/01_Foundation_Spec.md` — a detailed implementation
 specification for the **foundation slice** (Solution_Architecture.md §8
 track 1; Module_Boundaries.md §9 step 1).
 
+Align with the already-proposed OpenSpec change
+`openspec/changes/foundation-slice/` (proposal, design, delta specs, tasks).
+On conflict between this prompt and the OpenSpec change, **report it** —
+OpenSpec + `docs/` win over a stale prompt.
+
 ## Ground rules
 
 - `docs/` and `openapi/` are authoritative. On conflict, report — do not pick.
@@ -11,89 +16,84 @@ track 1; Module_Boundaries.md §9 step 1).
   reference them (`docs/Module_Boundaries.md`, `.claude/rules/`, `.cursor/rules/`).
 - Scope: MVP only. No MVP-excluded infrastructure (AGENTS.md exclusion list).
 - Spec maps 1:1 to `docs/Database_Schema.md` — do not invent tables or columns.
+- Trusted loop: never mark OpenSpec tasks complete without focused verification
+  (`docs/qa/verification-manifest.json` → `openspecApply`).
 
 ## Scope of this slice
 
 Docker Compose local stack, OIDC login, tenant/workspace/role bootstrap,
-hard-walled module stubs, all ArchUnit rules, canary deployment (see
-conflict resolution below).
+hard-walled module stubs, **nine** ArchUnit rules (CI-blocking), per-workspace
+canary FK chain with persisted deny (resolution **a**, extended — already
+decided in OpenSpec design).
 
 ## The specification must include
 
 1. **Project skeleton**
    - Single Gradle module layout with package tree per Module_Boundaries §2
    - Spring profiles `api` and `worker` (separate JVMs; ADR-001)
+   - Activate `.github/workflows/ci.yml` `backend-verify` in the **same commit**
+     as the Gradle wrapper
    - Docker Compose: PostgreSQL 16 + pgvector, Keycloak, MinIO, backend, frontend shell
 
-2. **ArchUnit rules (written first, CI-blocking, non-deferrable)**
-   - Provider SDK imports only inside `ai.provider.adapter` (SAD §2.3)
-   - Native/pgvector/tsvector queries only inside `search`
-   - `documents.mgmt` must not import `documents.pipeline` (SAD §9.2) —
-     written now even though `documents` is built in slice 2
-   - No `api`-profile class imports `worker.pipeline` / `worker.eval` packages
+2. **ArchUnit rules (written first, CI-blocking, non-deferrable) — nine walls**
+   1. Provider SDK imports only inside `..ai.provider.adapter..`
+   2. Native/pgvector/tsvector queries only inside `..search..`
+   3. `documents.mgmt` must not import `documents.pipeline`
+   4. No `api`-profile class (`@Profile("api")` OR package in `..web..` /
+      `..adapters.identity..`) imports `documents.pipeline`, `evaluation`, or
+      `worker.runtime` (Module_Boundaries names — **not** SAD stale
+      `worker.pipeline` / `worker.eval`)
+   5. `AllowedFilterSet` construction only inside `policy`
+   6. `audit_events` writes only inside `audit`
+   7. `@Entity` classes referenced only within owning package
+   8. `web.dto` never imported by `shared.model` or domain packages
+   9. `SearchReader` called only by `rag`; `SearchWriter` only by `documents.pipeline`
 
-3. **Domain model (foundation tables only — Database_Schema §9.1)**
-   - Java records/classes for: tenants, workspaces, users, memberships,
-     membership_capabilities, perm_cache_version, provider_configs,
-     workspace_ai_policies, provider_budget_counters, audit_events
-   - Provider-registry tables are schema-only in this slice; functional CRUD
-     belongs to the admin slice (prompt 04)
-   - Enums with exact values from Database_Schema (roles, classification
-     tiers, approval_status incl. `revoked`)
+3. **Domain model (Database_Schema §9.1 + canary pull-forward)**
+   - Java records/classes for foundation tables **plus** canary chain:
+     `collections`, `documents`, `document_versions`, `embedding_profiles`,
+     `chunks`, `chunk_embeddings`, `access_policies`
+   - `tenants.jit_email_domains` column (canonical in Database_Schema)
+   - Provider-registry tables are schema-only; functional CRUD → admin slice
+   - Enums with exact Database_Schema values
    - Tenancy scoping on every tenant-owned row
 
 4. **Persistence**
-   - Flyway migration V1 matching Database_Schema §9.1 exactly (do not
-     pull §9.2 tables unless canary resolution (a) below is chosen)
+   - Flyway V1 matching Database_Schema §9.1 + seven-table canary FK chain
    - INSERT-only DB role for `audit_events` + BEFORE UPDATE/DELETE trigger
    - Monthly partitioning for `audit_events`
-   - Seed data: demo tenant, workspace, users per role
+   - Seed data: demo tenant, workspace, users per role, full canary + deny rows
 
-5. **Known cross-doc conflict — canary chunk (must resolve in spec)**
-   - SAD §2.3 / §8 track 1: per-tenant canary chunk in a forbidden
-     collection, deployed in foundation (not deferred)
-   - Database_Schema §9.1: does **not** create `collections`, `chunks`, or
-     `chunk_embeddings` (those are §9.2 ingestion)
-   - The generated spec must **choose one resolution and document it**:
-     - **(a)** Pull minimum `collections` + `chunks` + `chunk_embeddings`
-       into V1; seed canary row; `search` canary-check is live in foundation
-     - **(b)** Ship `search` canary-check hook in foundation only; seed the
-       actual canary row in ingestion slice V2 (prompt 02)
-   - Do not silently assume either option
+5. **Canary — resolved (a), extended** (do not re-open)
+   - Per-workspace canary FK chain; forbidden = persisted `access_policies` deny
+   - Provisioned atomically with every workspace create
+   - Spec documents this; does not choose (b)
 
 6. **Hard-walled module stubs**
-   - `policy`: `resolvePermissions()` returning `AllowedFilterSet`;
-     `callProvider()` signature with fail-closed default; permission cache
-     (TTL ≤ 60s, `LISTEN/NOTIFY` invalidation, `perm_cache_version` row)
-   - `audit`: `record(AuditEvent)` in caller's transaction (ADR-005/015)
-   - `search`: `SearchReader`/`SearchWriter` interfaces requiring
-     `AllowedFilterSet` on every read; canary-check hook
-   - `ai.provider`: adapter SPI, one local OpenAI-compatible adapter stub,
-     package-private adapter classes
+   - `policy`: `resolvePermissions()` → `AllowedFilterSet`; `callProvider()`
+     fail-closed; cache TTL ≤ 60s + LISTEN/NOTIFY + `perm_cache_version`
+   - `audit`: `record(AuditEvent)` in caller transaction (ADR-005/015)
+   - `search`: `SearchReader`/`SearchWriter`; AllowedFilterSet on every read;
+     canary-check hook
+   - `ai.provider`: adapter SPI, one local OpenAI-compatible stub, package-private
 
-7. **API endpoints (from openapi/admin.yaml + API_Contracts.md)**
-   - OIDC login flow (SPA redirect, JWT validation, Spring Security OAuth2
-     Resource Server)
-   - `GET /api/v1/workspaces` (cursor pagination)
-   - Bootstrap endpoints needed for tenant/workspace/role setup
-   - Java records for request/response; ProblemDetails errors with exact
-     status codes; `X-Request-Id` on every response
+7. **API endpoints (openapi/admin.yaml + API_Contracts.md)**
+   - OIDC login, JWT validation, JIT via `jit_email_domains`
+   - `GET /api/v1/workspaces` + bootstrap admin endpoints
+   - Idempotency-Key on writes; ProblemDetails; `X-Request-Id`
+   - In-transaction audit on every bootstrap CUD
 
 8. **Security and authorization**
-   - JWT validation, JIT provisioning rules (BA §7.2.a), disabled-user denial
-   - Role model: ADMIN / CONTRIBUTOR / USER / VIEWER + capability flags
+   - Role model ADMIN/CONTRIBUTOR/USER/VIEWER + capability flags
    - Fail-closed defaults everywhere
 
 9. **Test plan**
-   - ArchUnit tests (the four walls) — first deliverable
-   - Testcontainers: PostgreSQL + pgvector migration test; V1 tables match
-     §9.1 (+ any tables pulled forward per canary resolution)
-   - Integration: OIDC token validation, permission cache invalidation on
-     `LISTEN/NOTIFY` drop (flush + PG-direct fallback), audit append-only
-     enforcement (UPDATE/DELETE rejected)
-   - Canary: if resolution (a), canary seeded and detectable by
-     `search` canary-check; if (b), canary-check hook present but no row
-     until ingestion slice
+   - Nine ArchUnit walls — first deliverable; each intentionally violated once
+   - Testcontainers migration test vs Database_Schema
+   - Integration: OIDC, cache invalidation, audit append-only, atomic canary,
+     in-transaction audit
+   - Coverage per `docs/qa/coverage-policy.md`
+   - Red/green evidence files under `openspec/changes/foundation-slice/evidence/`
 
 Deliverable format: entities → migrations → module stubs → endpoints →
 tests, with file-path-level layout proposals.

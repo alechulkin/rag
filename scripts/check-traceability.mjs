@@ -48,7 +48,9 @@ const sliceArg = args.includes('--slice')
   ? args[args.indexOf('--slice') + 1]
   : null;
 const checkFresh = args.includes('--check-fresh');
-const writeReport = args.includes('--write') || checkFresh || !args.includes('--stdout-only');
+const stdoutOnly = args.includes('--stdout-only');
+// --check-fresh must never rewrite the report (that made CI freshness a no-op).
+const writeReport = args.includes('--write') || (!checkFresh && !stdoutOnly);
 
 if (!['docs', 'full'].includes(phase)) {
   console.error('Invalid --phase; use docs or full');

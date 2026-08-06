@@ -34,15 +34,19 @@ Gradle/frontend trees and enables the commented CI jobs.
 node scripts/check-doc-links.mjs                                          # [active]
 npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal       # [active]
 npx --yes @fission-ai/openspec@1.7.0 validate --all --strict              # [active]
+node scripts/check-verification-manifest.mjs                              # [active]
 ```
 
 - [x] `AGENTS.md` + `.agents/skills/rag-*` in place; ADR-001..019 in `docs/adr/`.
-- [x] OpenSpec initialized (`openspec/config.yaml`, `openspec/specs/`, per-slice changes).
-- [x] CI `docs-verify` job live (OpenAPI lint, OpenSpec strict, links,
-      traceability freshness, golden-seed schema, Mermaid render, gitleaks).
+- [x] OpenSpec initialized (`openspec/config.yaml`, `openspec/specs/README.md` placeholder; main capability specs appear on archive sync; per-slice changes under `openspec/changes/`).
+- [x] CI `docs-verify` job live (manifest, OpenAPI lint, OpenSpec strict, links,
+      traceability freshness **without rewrite**, golden-seed schema, slice gates,
+      Mermaid render, gitleaks, evidence artifact upload).
 - [x] `docs/current-state.md` handoff log exists and is maintained
       (rule: `.cursor/rules/common/current-state.md`).
 - [x] Git initialized, history clean of secrets (gitleaks in CI).
+- [x] Minimum trusted loop contract: `docs/qa/verification-manifest.json` +
+      `docs/qa/branch-protection.md` + `.github/CODEOWNERS` (replace `@OWNER`).
 
 ## G1 — Product framing — **PASSED**
 
@@ -79,6 +83,7 @@ npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal       # [act
 npx --yes @fission-ai/openspec@1.7.0 validate --all --strict              # [active]
 node scripts/check-doc-links.mjs                                          # [active]
 node scripts/check-golden-seed.mjs                                        # [active]
+node scripts/check-verification-manifest.mjs                              # [active]
 node scripts/check-traceability.mjs --phase full --write \
   && node scripts/check-traceability.mjs --phase full --check-fresh       # [foundation+] (docs phase until test code exists)
 
@@ -87,21 +92,23 @@ node scripts/check-traceability.mjs --phase full --write \
   test jacocoTestCoverageVerification build                               # [foundation+]
 cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm run build   # [foundation+]
 
-# Slice evidence
+# Slice evidence — CI runs via check-slice-gates.mjs when evidence/ present
+node scripts/check-slice-gates.mjs                                        # [active] CI
 node scripts/check-red-green-evidence.mjs --slice <slice>                 # [active] once evidence written
 node scripts/check-handoff-fresh.mjs --slice <slice>                      # [active] at slice close
+node scripts/check-remediation-ledger.mjs --file openspec/changes/<slice>/evidence/remediation-ledger.md  # [active] when ledger exists
 ```
 
 - [ ] G2 held for this slice **before** implementation started.
-- [ ] All `tasks.md` checkboxes ticked, truthfully.
-- [ ] **Red-first evidence** (plan §5.5): tests for matrix rows written from
+- [ ] All `tasks.md` checkboxes ticked, truthfully — each `[x]` requires focused verification already run (see `docs/qa/verification-manifest.json` → `openspecApply`).
+- [ ] **Red-first evidence** (plan §5 DoD item 5): tests for matrix rows written from
       the spec and observed to FAIL before implementation, then made green; no
       test weakened to pass. Durable evidence saved as
       `openspec/changes/<slice>/evidence/red-run.json` (non-zero exit,
       failing test list, gitHead, timestamp) and `green-run.json` (exit 0).
 - [ ] Every matrix row closing in the slice has ≥ 1 test annotated
       `@trace <row-id>` (traceability phase `full`); deferred rows have an
-      explicit handoff recorded (plan §5.2).
+      explicit handoff recorded (plan §5 DoD item 2).
 - [ ] ArchUnit walls green; each wall demonstrably red on an intentional
       violation at least once (foundation slice proves this; later slices keep
       them green).
@@ -117,8 +124,8 @@ node scripts/check-handoff-fresh.mjs --slice <slice>                      # [act
       pre-retrieval filtering, fail-closed provider gate, no secrets, canary
       never in results.
 - [ ] PR reviewed by ≥ 1 approver who is not the implementer (PR template +
-      `.coderabbit.yaml` reviewer); ALL confirmed findings fixed and commands
-      re-run green.
+      branch protection; CodeRabbit advisory only); ALL confirmed findings
+      recorded in remediation ledger, fixed or escalated, and commands re-run green.
 - [ ] No API endpoint in the slice can 500 on user input; errors are
       `ProblemDetails` (ADR-009); no silent external failures.
 - [ ] Change archived (`openspec list` shows no active change for the slice),
@@ -207,16 +214,21 @@ node scripts/check-traceability.mjs --phase full --check-fresh            # [fou
 
 | Script | Purpose |
 |--------|---------|
+| `scripts/check-slice-gates.mjs` | CI entry: for each change with evidence runs, validate red/green (+ handoff if green, + ledger if present). |
 | `scripts/check-red-green-evidence.mjs --slice <slice>` | Validate `openspec/changes/<slice>/evidence/{red,green}-run.json` shape and ordering (red exit ≠ 0 + failingTests, green exit 0, red timestamp/gitHead precede green). Resolves archived changes too. |
 | `scripts/check-handoff-fresh.mjs --slice <slice>` | Fail if `docs/current-state.md` newest entry omits the slice or predates the baseline: green-run timestamp, else latest git commit on the change dir, else newest file mtime (10 min write-then-commit skew allowed). |
+| `scripts/check-remediation-ledger.mjs --file <path>` | Validate bounded remediation ledger (max attempts, dispositions, open→next action). |
+| `scripts/check-verification-manifest.mjs` | Validate `docs/qa/verification-manifest.json` shape + referenced scripts exist. |
 
 `scripts/check-traceability.mjs` is **archive-aware**: after a change moves to
 `openspec/changes/archive/YYYY-MM-DD-<slice>/`, row-ID enforcement continues
 against the archived delta specs (newest matching archive wins).
 
+`--check-fresh` never rewrites the report (CI must not `--write` before check).
+
 Tip: run traceability for one slice only:
 
 ```bash
 node scripts/check-traceability.mjs --slice foundation-slice --phase docs --write
-node scripts/check-traceability.mjs --slice foundation-slice --phase full --check-fresh
+node scripts/check-traceability.mjs --slice foundation-slice --phase docs --check-fresh
 ```

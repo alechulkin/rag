@@ -1,0 +1,12 @@
+# Code owners — replace @OWNER before enabling "Require review from Code Owners"
+
+# Default: all paths need a human owner review on PRs
+* @OWNER
+
+# Contracts and security-sensitive surfaces (same owner until teams exist)
+/docs/BRD.md @OWNER
+/docs/NFR.md @OWNER
+/docs/Database_Schema.md @OWNER
+/openapi/ @OWNER
+/.github/workflows/ @OWNER
+/scripts/ @OWNER

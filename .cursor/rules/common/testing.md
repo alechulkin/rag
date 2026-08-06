@@ -1,6 +1,14 @@
 # Testing Requirements
 
-## Minimum Test Coverage: 80%
+## Minimum Test Coverage (NFR §7.2 — docs win)
+
+Canonical thresholds: `docs/qa/coverage-policy.md` + `docs/NFR.md` §7.2.
+
+- Backend aggregate MVP: **≥ 70%** line (production launch ≥ 80%)
+- Critical modules (`policy`, `audit`, `search`, retention): **≥ 90%**
+- Frontend: shared components ≥ 60%, state/services ≥ 80% (MVP)
+
+Do **not** invent an 80% backend MVP floor — that conflicts with NFR.
 
 Test Types (ALL required):
 1. **Unit Tests** - Individual functions, utilities, components
@@ -15,7 +23,7 @@ MANDATORY workflow:
 3. Write minimal implementation (GREEN)
 4. Run test - it should PASS
 5. Refactor (IMPROVE)
-6. Verify coverage (80%+)
+6. Verify coverage against `docs/qa/coverage-policy.md`
 
 ## Troubleshooting Test Failures
 
