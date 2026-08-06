@@ -34,7 +34,7 @@ Before marking code complete:
 - [ ] No hardcoded secrets or credentials
 - [ ] No console.log or debug statements
 - [ ] Tests exist for new functionality
-- [ ] Test coverage meets 80% minimum
+- [ ] Test coverage meets NFR §7.2 / `docs/qa/coverage-policy.md` (70% backend MVP; 90% policy/audit/search)
 
 ## Security Review Triggers
 
@@ -77,7 +77,7 @@ Use these agents for code review:
 2. Check security checklist first
 3. Review code quality checklist
 4. Run relevant tests
-5. Verify coverage >= 80%
+5. Verify coverage per docs/qa/coverage-policy.md
 6. Use appropriate agent for detailed review
 ```
 

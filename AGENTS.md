@@ -17,7 +17,7 @@ them as the source for any generated code.
 
 1. `docs/BRD.md` — business scope and hard requirements
 2. `docs/NFR.md` — measurable quality and cost constraints
-3. `docs/adr/` — accepted architecture decisions (ADR-001..018)
+3. `docs/adr/` — accepted architecture decisions (ADR-001..019)
 4. `docs/Solution_Architecture.md` — runtime topology, sequences, cross-cutting concerns
 5. `docs/Module_Boundaries.md` + `docs/Shared_Abstractions.md` — module map and shared contracts
 6. `docs/Database_Schema.md` — canonical data model (DDL-level)
@@ -56,7 +56,11 @@ Three layers, most authoritative first:
    - `.cursor/rules/common/` — cross-cutting workflow, review, security
 
 Do not restate rules from these layers here or in code comments.
-Tool note: Cursor auto-attaches `.cursor/rules/*.mdc`; `.claude/rules/` applies in Claude Code and compatible agents; `.agents/skills/` loads on demand via the Skills table above.
+Tool note: Cursor attaches project rules under `.cursor/rules/` (prefer `.mdc` with
+`globs`/`alwaysApply` when adding new rules; existing `.md` rules remain guidance).
+`.claude/rules/` applies in Claude Code and compatible agents; `.agents/skills/`
+loads on demand via the Skills table above. Trusted loop commands:
+`docs/qa/verification-manifest.json` + `.github/workflows/ci.yml`.
 
 ## Protected Rules
 

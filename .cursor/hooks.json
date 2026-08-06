@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "node .cursor/hooks/before-shell-execution-block-no-verify.js",
+        "timeout": 15
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "node .cursor/hooks/before-submit-prompt.js",
+        "timeout": 10
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "node .cursor/hooks/before-read-file.js",
+        "timeout": 10
+      }
+    ]
+  }
+}
