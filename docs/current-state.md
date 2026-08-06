@@ -2,6 +2,19 @@
 
 Running log of what the agent last did in this repo. Newest entry first. See [.cursor/rules/common/current-state.md](../.cursor/rules/common/current-state.md) for the maintenance rule.
 
+## 2026-08-06T16:09:47+03:00
+
+- **Timestamp of last agent action:** 2026-08-06T16:09:47+03:00
+- **What was done by agent:**
+  - Added project MCP config `.cursor/mcp.json` (remote Context7 at `https://mcp.context7.com/mcp`; optional `CONTEXT7_API_KEY` via env — no literal secret)
+  - Implemented `docs/plans/context7-mcp-integration.md`; skill tool names already match upstream (`resolve-library-id`, `query-docs`) — no skill edit
+  - Smoke-tested via `ctx7` CLI (MCP not yet loaded in this agent session): resolved `/spring-projects/spring-boot`, docs from `/websites/spring_io_spring-boot_3_5` returned current Spring Boot 3.5 snippets
+- **Current state:**
+  - Context7 wired at project level for Cursor; keyless OK (lower rate limits)
+  - Reload Cursor MCP (Settings → MCP) needed before `GetMcpTools`/CallMcpTool see `context7` in-session
+- **Next steps:** reload Cursor MCP; export `CONTEXT7_API_KEY` only if rate limits block work
+- **Open questions / blockers:** none for this plan; cross-doc drift from Module_Boundaries §6 still unfixed
+
 ## 2026-08-05T21:10:00+03:00
 
 - **Timestamp of last agent action:** 2026-08-05T21:10:00+03:00
