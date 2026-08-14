@@ -8,7 +8,7 @@ plugins {
     id("org.owasp.dependencycheck") version "12.2.2"
     id("net.ltgt.errorprone") version "4.1.0"
     id("org.cyclonedx.bom") version "2.2.0"
-    id("org.springframework.boot") version "3.4.4"
+    id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
@@ -24,6 +24,14 @@ java {
 repositories {
     mavenCentral()
 }
+
+extra["commons-lang3.version"] = "3.20.0"
+extra["httpclient5.version"] = "5.6.2"
+extra["httpcore5.version"] = "5.4.3"
+extra["jackson-bom.version"] = "2.21.5"
+extra["log4j2.version"] = "2.25.5"
+extra["postgresql.version"] = "42.7.12"
+extra["tomcat.version"] = "10.1.57"
 
 dependencyManagement {
     imports {
@@ -44,6 +52,10 @@ dependencies {
     implementation("com.pgvector:pgvector:0.1.6")
 
     errorprone("com.google.errorprone:error_prone_core:2.36.0")
+
+    add("checkstyle", "com.puppycrawl.tools:checkstyle:10.21.4")
+    add("checkstyle", "commons-beanutils:commons-beanutils:1.11.0")
+    add("checkstyle", "org.codehaus.plexus:plexus-utils:3.6.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.0")
@@ -77,11 +89,15 @@ tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
 
 dependencyCheck {
     format = "ALL"
+    outputDirectory = layout.buildDirectory.dir("reports/dependency-check").get().asFile
     nvd.apiKey = System.getenv("NVD_API_KEY") ?: ""
     failBuildOnCVSS = 7.0f
+    failBuildOnUnusedSuppressionRule = true
+    suppressionFile = "config/dependency-check-suppressions.xml"
     analyzers.assemblyEnabled = false
     analyzers.nodeEnabled = false
     analyzers.nodeAuditEnabled = false
+    analyzers.retirejs.enabled = false
 }
 
 tasks.withType<JavaCompile>().configureEach {

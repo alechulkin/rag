@@ -205,7 +205,7 @@ jobs:
             build/reports/jacoco/
             build/reports/checkstyle/
             build/reports/spotbugs/
-            build/reports/dependency-check-report.html
+            build/reports/dependency-check/
             build/reports/sbom.json
           if-no-files-found: ignore
 
