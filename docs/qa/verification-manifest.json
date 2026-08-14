@@ -95,7 +95,7 @@
       "blocking": true,
       "phase": "foundation+",
       "command": "./gradlew checkstyleMain checkstyleTest spotbugsMain dependencyCheckAnalyze test jacocoTestCoverageVerification build",
-      "notes": "Enable commented job in .github/workflows/ci.yml in same commit as Gradle wrapper (foundation-slice DoD)."
+      "notes": "Active in .github/workflows/ci.yml. The dependency-check-data prerequisite warms a cold NVD cache; .github/workflows/dependency-check-cache.yml refreshes it daily. NVD_API_KEY is required as a GitHub Actions repository secret."
     },
     {
       "id": "frontend-verify",
