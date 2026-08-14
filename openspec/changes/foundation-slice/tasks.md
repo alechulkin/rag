@@ -1,19 +1,23 @@
 ## 1. Foundation Spec Document
 
-- [ ] 1.1 Write `docs/specs/01_Foundation_Spec.md` synthesizing proposal, design, and delta specs with file-path-level layout (entities → migrations → stubs → endpoints → tests)
-- [ ] 1.2 Document canary resolution **(a)** with full FK chain: `collections` → `documents` → `document_versions` → `embedding_profiles` → `chunks` → `chunk_embeddings`, plus `access_policies` persisted-deny rows
-- [ ] 1.3 Document cross-doc resolutions already applied to `docs/Database_Schema.md` in this change: `tenants.jit_email_domains` column, §9.1/§9.2 canary table split; and the SAD §9.2 → Module_Boundaries package name mapping
-- [ ] 1.4 Cross-check spec against Database_Schema §9.1/§9.2, Module_Boundaries §2/§9, SAD §8 track 1, openapi/admin.yaml — report any remaining conflicts
+- [x] 1.1 Write `docs/specs/01_Foundation_Spec.md` synthesizing proposal, design, and delta specs with file-path-level layout (entities → migrations → stubs → endpoints → tests)
+- [x] 1.2 Document canary resolution **(a)** with full FK chain: `collections` → `documents` → `document_versions` → `embedding_profiles` → `chunks` → `chunk_embeddings`, plus `access_policies` persisted-deny rows
+- [x] 1.3 Document cross-doc resolutions already applied to `docs/Database_Schema.md` in this change: `tenants.jit_email_domains` column, §9.1/§9.2 canary table split; and the SAD §9.2 → Module_Boundaries package name mapping
+- [x] 1.4 Cross-check spec against Database_Schema §9.1/§9.2, Module_Boundaries §2/§9, SAD §8 track 1, openapi/admin.yaml — report any remaining conflicts (evidence: `evidence/phase-a-doc-verify.md`; OpenAPI gap → task 7.11)
+
+
 
 ## 2. Project Skeleton
 
-- [ ] 2.1 Create Gradle build (Java 21, Spring Boot) with single module and dependency set (Flyway, Spring Security OAuth2 Resource Server, Testcontainers, ArchUnit, pgvector JDBC)
+- [x] 2.1 Create Gradle build (Java 21, Spring Boot) with single module and dependency set (Flyway, Spring Security OAuth2 Resource Server, Testcontainers, ArchUnit, pgvector JDBC) (evidence: `evidence/task-2.1-gradle-build.md`; `./gradlew build` → BUILD SUCCESSFUL)
 - [ ] 2.2 Activate `.github/workflows/ci.yml` `backend-verify` immediately after the Gradle wrapper and required tasks exist; configure lint, dependency scan, test, JaCoCo coverage per `docs/qa/coverage-policy.md`, build, and evidence commands so this job passes before domain implementation starts
 - [ ] 2.3 Scaffold package tree per Module_Boundaries §2: `documents.pipeline`, `evaluation`, `worker.runtime` (NOT `worker.pipeline` / `worker.eval`)
 - [ ] 2.4 Configure Spring profiles `api` and `worker` with profile-specific `@Configuration` and component scanning boundaries
 - [ ] 2.5 Add `application-api.yml` and `application-worker.yml` with PostgreSQL, Keycloak issuer, MinIO placeholders
 - [ ] 2.6 Create Docker Compose: PostgreSQL 16 + pgvector, Keycloak (realm import), MinIO, api service, worker service, frontend shell
 - [ ] 2.7 Scaffold React + TypeScript frontend shell with OIDC redirect login per Design_System.md
+
+
 
 ## 3. Shared Value Objects and Exceptions
 
@@ -23,6 +27,8 @@
 - [ ] 3.4 Implement `shared.model.RequestContext` (`@RequestScope`: tenantId, workspaceId, userId), api profile only
 - [ ] 3.5 Implement `shared.exception.DomainException` hierarchy
 - [ ] 3.6 Verify these VOs compile standalone before any ArchUnit wall test depends on them
+
+
 
 ## 4. ArchUnit Walls (First Deliverable, Nine Walls)
 
@@ -37,6 +43,8 @@
 - [ ] 4.9 Implement ArchUnit test: `SearchReader` called only by `rag`; `SearchWriter` called only by `documents.pipeline`
 - [ ] 4.10 Verify the active `backend-verify` job runs all nine ArchUnit tests through `./gradlew test`; confirm each intentional wall violation fails the CI build
 
+
+
 ## 5. Database and Domain Model
 
 - [ ] 5.1 Write Flyway V1: all Database_Schema §9.1 tables including `tenants.jit_email_domains TEXT[] NOT NULL DEFAULT '{}'` (already reflected in `docs/Database_Schema.md`)
@@ -47,6 +55,8 @@
 - [ ] 5.6 Create Java entity records/classes for all §9.1 entities plus canary chain entities, tenant-scoped directly where a `tenant_id` column exists and through the canonical FK chain where it does not
 - [ ] 5.7 Create Spring Data JPA repositories with tenant-filtered queries (direct predicate or FK-chain join per table)
 
+
+
 ## 6. Hard-Walled Module Stubs
 
 - [ ] 6.1 Implement `policy.access`: `resolvePermissions()` returning `AllowedFilterSet`, permission cache (TTL ≤ 60s for `standard` only), cache bypass for `restricted`/`strict`, `perm_cache_version` integration, LISTEN/NOTIFY invalidation, PG-direct fallback
@@ -55,6 +65,8 @@
 - [ ] 6.4 Implement `search.SearchReader`: requires `AllowedFilterSet` on every method; canary-check hook on every read path
 - [ ] 6.5 Implement `search.SearchWriter`: `insertChunksAndVectors`, `deleteByDocument`, `deleteByProfile`, each requiring `EmbeddingProfile` plus explicit tenant context (`tenantId`, `workspaceId`); no method accepts `AllowedFilterSet`
 - [ ] 6.6 Implement `ai.provider`: adapter SPI, one local OpenAI-compatible stub adapter (package-private)
+
+
 
 ## 7. Security and API
 
@@ -70,11 +82,15 @@
 - [ ] 7.10 Add global `X-Request-Id` filter and RFC 7807 ProblemDetails exception handler
 - [ ] 7.11 Update `openapi/admin.yaml` with all bootstrap endpoints, schemas, security, Idempotency-Key parameter
 
+
+
 ## 8. Frontend Integration
 
 - [ ] 8.1 Implement OIDC redirect login flow against Keycloak
 - [ ] 8.2 Implement post-login workspace list page calling `GET /api/v1/workspaces`
 - [ ] 8.3 Verify frontend shell runs in Docker Compose against api backend
+
+
 
 ## 9. Tests
 
@@ -90,9 +106,11 @@
 - [ ] 9.10 Configure JaCoCo thresholds per `docs/qa/coverage-policy.md` (70% aggregate, 90% policy/audit/search packages); wire `jacocoTestCoverageVerification` into `./gradlew check`
 - [ ] 9.11 Scaffold Playwright E2E project under `frontend/e2e/` with journey #1 (login) per `docs/qa/e2e-journeys.md`
 
+
+
 ## 10. Verification
 
 - [ ] 10.1 Run full test suite locally (ArchUnit, Testcontainers, integration)
 - [ ] 10.2 Validate openapi/admin.yaml parses
-- [ ] 10.3 Grep cross-doc consistency (table names, ADR refs, no stale `worker.pipeline`/`worker.eval` terms)
+- [ ] 10.3 Grep cross-doc consistency (table names, ADR refs, no stale `worker.pipeline`/`worker.eval` terms); **reconcile SAD §9.2 line ~505** (`worker.pipeline`/`worker.eval` → `documents.pipeline`/`evaluation` per spec §2.3) before running grep gate
 - [ ] 10.4 Confirm no MVP-excluded infrastructure introduced (Kafka, Redis, K8s, dedicated vector DB)

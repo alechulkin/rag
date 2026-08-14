@@ -128,12 +128,12 @@ Api-profile import wall targets `documents.pipeline`, `evaluation`,
 | Module_Boundaries §2 | Package tree | **Aligned** — see §4 |
 | Module_Boundaries §9 step 1 | ArchUnit first, canary seed, Compose | **Aligned** |
 | SAD §8 track 1 | Foundation deliverables | **Aligned** |
-| SAD §9.2 line 505 | Stale `worker.pipeline`/`worker.eval` in ArchUnit rule text | **Leftover conflict** — doc not updated; implementation uses MB §2 names per §2.3 above |
+| SAD §9.2 line ~505 | Stale `worker.pipeline`/`worker.eval` in ArchUnit rule text | **Tracked** — reconcile before task 10.3; implementation uses MB §2 names per §2.3 |
 | SAD §2.3 | "Per-tenant" canary wording | **Narrow interpretation** — per-workspace canary is strict superset; no doc edit required |
-| openapi/admin.yaml | Bootstrap endpoints | **Gap** — only `GET /workspaces` defined; tasks 7.11 add four POST/PUT bootstrap paths (During phase) |
+| openapi/admin.yaml | Bootstrap endpoints | **Accepted gap** — only `GET /workspaces` today; **task 7.11** adds four POST/PUT bootstrap paths |
 
-No silent doc patches in Phase A. SAD §9.2 stale package names and incomplete
-OpenAPI are recorded for During-phase implementation.
+No silent doc patches in Phase A. SAD §9.2 reconciliation deferred to task 10.3;
+OpenAPI extension deferred to task 7.11.
 
 ---
 
