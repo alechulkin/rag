@@ -20,8 +20,10 @@ Downstream of this plan: one **OpenSpec change per slice**
 (`openspec/changes/<slice>/` — proposal, design, delta specs, tasks) plus the
 canonical implementation spec `docs/specs/<NN>_<Slice>_Spec.md` (generated from
 [spec-prompts/](spec-prompts/)) → implementation → tests → verification per the
-`rag-change-workflow` skill. Slice boundaries and the dependency rationale live
-in [Solution_Architecture.md §8](Solution_Architecture.md) and
+`rag-change-workflow` skill and the operator runbook
+[docs/qa/slice-implementation-runbook.md](qa/slice-implementation-runbook.md).
+Slice boundaries and the dependency rationale live in
+[Solution_Architecture.md §8](Solution_Architecture.md) and
 [Module_Boundaries.md §9](Module_Boundaries.md); this plan does not restate
 them, it operationalizes them.
 
