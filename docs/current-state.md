@@ -2,6 +2,16 @@
 
 Running log of what the agent last did in this repo. Newest entry first. See [.cursor/rules/common/current-state.md](../.cursor/rules/common/current-state.md) for the maintenance rule.
 
+## 2026-08-14T12:26:00+03:00
+
+- **Timestamp of last agent action:** 2026-08-14T12:26:00+03:00
+- **What was done by agent:**
+  - Replaced `docs/qa/slice-implementation-runbook.md` with numbered A–F checklist; commands inline; Phase G per-slice extras
+- **Current state:**
+  - Operator checklist is the numbered runbook; existing links from quality-gates / capability plan / README still valid
+- **Next steps:** follow Phase A for `foundation-slice` (tasks 1.1–1.4), then `/opsx-apply`
+- **Open questions / blockers:** cross-doc drift from Module_Boundaries §6 still unfixed; solo maintainer approval waiver if no second reviewer
+
 ## 2026-08-14T12:15:00+03:00
 
 - **Timestamp of last agent action:** 2026-08-14T12:15:00+03:00
