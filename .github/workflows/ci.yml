@@ -138,6 +138,9 @@ jobs:
     needs: dependency-check-data
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -182,12 +185,15 @@ jobs:
 
       - name: PR coverage comment
         if: github.event_name == 'pull_request'
-        uses: madrapps/jacoco-report@v1.6.1
+        uses: madrapps/jacoco-report@e51ce1f46f7f8b5331593f935e59cbaf44b84920 # v1.8.0
         with:
           paths: ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
           token: ${{ secrets.GITHUB_TOKEN }}
           min-coverage-overall: 70
           min-coverage-changed-files: 70
+          title: Code Coverage
+          update-comment: true
+          continue-on-error: false
 
       - name: SBOM (CycloneDX)
         run: ./gradlew cyclonedxBom --no-daemon
