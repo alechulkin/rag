@@ -1,84 +1,49 @@
-# Slice Implementation Runbook
+# Slice implementation checklist
 
-Operator guide for implementing MVP delivery slices **1–6** through spec,
-bounded implementation, deterministic verification, evidence capture, and
-merge-ready PRs.
+Repeat phases A–F for every slice. Stop on any non-zero exit. Never skip a
+command. Never mark a task `[x]` without a proving command.
 
-**Workflow, not requirements.** Subordinate to [AGENTS.md](../../AGENTS.md)
-precedence, [mvp-capability-plan.md](../mvp-capability-plan.md) (plan), and
-[quality-gates.md](../checklists/quality-gates.md) (G0–G8). On conflict,
-report drift — do not silently patch authoritative docs.
+Slice order: `foundation-slice` → `ingestion-slice` → `chat-slice`.
+`admin-slice` after foundation, may overlap ingestion/chat.
+`evaluation-slice` after chat + admin. `hardening-slice` last.
 
-**Canonical gate list:** [verification-manifest.json](./verification-manifest.json)  
-**CI mirror:** [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
+Replace `<slice>` with the change name (`foundation-slice`, `ingestion-slice`,
+…).
 
----
-
-## 0. Preconditions (once)
-
-Complete before slice 1 implementation:
-
-1. **Trusted loop on `main`.** G0–G3 passed per [quality-gates.md](../checklists/quality-gates.md).
-2. **CODEOWNERS.** Replace `@OWNER` in [.github/CODEOWNERS](../../.github/CODEOWNERS) with a real GitHub user or team.
-3. **Branch protection.** Configure per [branch-protection.md](./branch-protection.md):
-   - Require status check **`docs-verify`** (always).
-   - Require **`backend-verify`** / **`frontend-verify`** after foundation
-     uncomments those jobs.
-   - Require approvals only when a **non-author** reviewer exists. Solo
-     maintainers: document a temporary waiver in [current-state.md](../current-state.md).
-4. **Branch discipline.** One slice (or sub-PR) per branch; never implement
-   directly on `main`.
+This file is **workflow, not requirements**. On conflict with BRD, NFR, ADRs,
+or the capability plan, report the drift — do not silently patch those docs.
 
 ---
 
-## 1. Slice order (hard vs soft)
+## Preconditions (once)
 
-From [mvp-capability-plan.md §2](../mvp-capability-plan.md#2-critical-path-dag):
-
-| # | Slice | OpenSpec change | Spec prompt | Canonical spec doc |
-|---|-------|-----------------|-------------|-------------------|
-| 1 | Foundation | `foundation-slice` | [01_foundation-slice.md](../spec-prompts/01_foundation-slice.md) | `docs/specs/01_Foundation_Spec.md` |
-| 2 | Ingestion | `ingestion-slice` | [02_ingestion-slice.md](../spec-prompts/02_ingestion-slice.md) | `docs/specs/02_Ingestion_Spec.md` |
-| 3 | Chat / RAG | `chat-slice` | [03_chat-slice.md](../spec-prompts/03_chat-slice.md) | `docs/specs/03_Chat_Spec.md` |
-| 4 | Admin | `admin-slice` | [04_admin-slice.md](../spec-prompts/04_admin-slice.md) | `docs/specs/04_Admin_Spec.md` |
-| 5 | Evaluation | `evaluation-slice` | [05_evaluation-slice.md](../spec-prompts/05_evaluation-slice.md) | `docs/specs/05_Evaluation_Spec.md` |
-| 6 | Hardening | `hardening-slice` | [06_hardening-slice.md](../spec-prompts/06_hardening-slice.md) | `docs/specs/06_Hardening_Spec.md` |
-
-**Hard dependencies:**
-
-- Everything after **foundation** (Gradle, Compose, Flyway V1, ArchUnit walls).
-- **Ingestion before chat** (indexed, permission-scoped content).
-- **Chat + admin before evaluation** (live RAG pipeline + notifications).
-- **Hardening last** (retention, E2E re-verification, cross-cutting OBS/RET).
-
-**Soft:** admin may overlap ingestion/chat (foundation seeds registry defaults).
+1. Merge trusted-loop work onto `main` if still on a feature branch.
+2. Replace `@OWNER` in `.github/CODEOWNERS` with a real GitHub user or team.
+3. GitHub → Settings → Branches → protect `main`: require status check
+   `docs-verify`. After foundation, also require `backend-verify` and
+   `frontend-verify`.
+4. Require PR approvals only if a second reviewer exists. Solo: skip required
+   approvals; record waiver in `docs/current-state.md`.
+5. Never implement on `main`. One slice (or sub-PR) per branch.
 
 ---
 
-## 2. Universal loop (every slice)
+## Phase A — Spec (before any implementation code)
 
-Repeat phases **A → F** for each slice.
-
-### Phase A — Spec gate (G2) — **before any code**
-
-**Foundation:** OpenSpec change already proposed at
-`openspec/changes/foundation-slice/`. Skip propose; complete spec doc tasks
-1.1–1.4 in [tasks.md](../../openspec/changes/foundation-slice/tasks.md).
-
-**Slices 2–6:**
-
-1. Branch: `feat/<slice>` (or `feat/<slice>-spec` if spec-only PR).
-2. Run `/opsx-propose <slice>` (or [openspec-propose](../../.codex/skills/openspec-propose/SKILL.md))
-   with the matching [spec-prompts](../spec-prompts/README.md) pasted into the
-   session.
-3. Ensure `openspec/changes/<slice>/` contains: `proposal.md`, `design.md`,
-   delta `specs/**/spec.md`, `tasks.md`.
-4. Cite every plan §1 matrix row whose **acceptance evidence closes** in this
-   slice inside delta specs (`<!-- trace: ING-AC1 -->` or inline row IDs).
-5. Write `docs/specs/<NN>_<Slice>_Spec.md` from OpenSpec artifacts + prompt.
-6. **Report** cross-doc conflicts; never silently resolve (AGENTS.md).
-
-**Blocking commands (all exit 0):**
+1. Create branch: `git checkout -b feat/<slice>`.
+2. Foundation only: skip propose. OpenSpec already at
+   `openspec/changes/foundation-slice/`. Go to point 6.
+3. Slices 2–6: paste `docs/spec-prompts/0N_<slice>.md` into an agent session
+   and run `/opsx-propose <slice>`.
+4. Confirm these files exist: `openspec/changes/<slice>/proposal.md`,
+   `openspec/changes/<slice>/design.md`, `openspec/changes/<slice>/tasks.md`,
+   `openspec/changes/<slice>/specs/**/spec.md`.
+5. Put every closing matrix row ID in delta specs (`FND-n`, `ING-ACn`,
+   `SRCH-ACn`, `CHAT-ACn`, `ADM-ACn`, `EVAL-ACn`, `OBS-ACn`, `RET-DOC` /
+   `RET-CHAT` / `RET-AUDIT`). Report conflicts. Do not silently patch `docs/`.
+6. Write `docs/specs/<NN>_<Slice>_Spec.md` (foundation:
+   `docs/specs/01_Foundation_Spec.md`, tasks 1.1–1.4).
+7. Run:
 
 ```bash
 npx --yes @fission-ai/openspec@1.7.0 validate --all --strict
@@ -87,78 +52,90 @@ node scripts/check-traceability.mjs --check-fresh
 node scripts/check-doc-links.mjs
 npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal
 node scripts/check-verification-manifest.mjs
+node scripts/check-golden-seed.mjs
 ```
 
-Commit the regenerated [traceability-report.md](./traceability-report.md).
-CI runs `--check-fresh` **without** `--write` — stale committed report fails.
-
-**Stop if any command is red.** Do not start implementation.
-
----
-
-### Phase B — Implement (bounded, red-first TDD)
-
-Use `/opsx-apply <slice>` or [openspec-apply-change](../../.codex/skills/openspec-apply-change/SKILL.md).
-
-**Per-task rule** ([verification-manifest.json](./verification-manifest.json) →
-`openspecApply`): never mark `- [x]` until focused verification for **that**
-task has run and the decisive exit line is recorded (session + PR evidence).
-
-For each pending task in `tasks.md`:
-
-1. State task id and intent.
-2. Write or extend tests for matrix rows the task closes (`@trace <row-id>` once
-   test code exists).
-3. Observe **red** where applicable.
-4. Implement minimal code to pass.
-5. Run smallest proving command (unit, ArchUnit, integration, OpenAPI lint,
-   Compose smoke).
-6. Paste decisive output line.
-7. Only then: `- [ ]` → `- [x]`.
-
-Constraints:
-
-- Smallest coherent vertical slice; no opportunistic refactors (rag-change-workflow).
-- New architectural decisions → new ADR in `docs/adr/`, not silent edits.
-- Update `openapi/*.yaml` when HTTP contracts change.
+8. Commit `docs/qa/traceability-report.md` and the spec files. CI runs
+   `--check-fresh` without `--write`; uncommitted report fails.
+9. If any command exits non-zero: stop. Do not start Phase B.
 
 ---
 
-### Phase C — Red/green evidence (G4)
+## Phase B — Implement (one OpenSpec task at a time)
 
-Before implementation makes red tests pass, capture failure:
+1. Start apply: `/opsx-apply <slice>`.
+2. For each `- [ ]` in `openspec/changes/<slice>/tasks.md`:
+   1. State the task id.
+   2. Write tests first. Annotate `@trace <row-id>` when test files exist.
+   3. Run the smallest proving command for that task. Examples after Gradle
+      exists:
 
-**Path:** `openspec/changes/<slice>/evidence/red-run.json`
+```bash
+./gradlew test --tests <TestClass>
+./gradlew test
+npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal
+```
 
-Required fields:
+   4. Confirm the test is red (non-zero) before production code for that
+      behavior.
+   5. Implement the minimum code to pass.
+   6. Re-run the same proving command. Exit 0 required.
+   7. Paste the decisive output line into the session (later into the PR).
+   8. Only then change `- [ ]` to `- [x]`.
+3. Do not refactor unrelated files.
+4. New architecture decision: add a new file under `docs/adr/`. Do not
+   silently edit accepted ADRs.
+5. HTTP contract change: edit `openapi/*.yaml` in the same change, then:
 
-- `exitCode` — non-zero number
-- `failingTests` — non-empty string array
-- `gitHead` — 7–40 hex SHA
-- `timestamp` — ISO-8601
+```bash
+npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal
+```
 
-After slice work is green:
+---
 
-**Path:** `openspec/changes/<slice>/evidence/green-run.json`
+## Phase C — Red/green evidence
 
-- `exitCode` — `0`
-- `failingTests` — `[]`
-- `gitHead` — **different** SHA from red
-- `timestamp` — **later** than red
+1. After the first failing matrix-row test run, before the code that makes it
+   pass, write `openspec/changes/<slice>/evidence/red-run.json`:
 
-Validate:
+```json
+{
+  "exitCode": 1,
+  "failingTests": ["com.example.FooTest.bar"],
+  "gitHead": "<sha from git rev-parse HEAD>",
+  "timestamp": "<ISO-8601>"
+}
+```
+
+2. Capture SHA and time:
+
+```bash
+git rev-parse HEAD
+date -u +"%Y-%m-%dT%H:%M:%SZ"
+```
+
+3. After the slice is green, write
+   `openspec/changes/<slice>/evidence/green-run.json` with `exitCode: 0`,
+   `failingTests: []`, a **different** `gitHead`, a **later** `timestamp`.
+4. Run:
 
 ```bash
 node scripts/check-red-green-evidence.mjs --slice <slice>
 ```
 
-CI enforces via `scripts/check-slice-gates.mjs` once evidence files exist.
+5. CI will run this automatically via:
+
+```bash
+node scripts/check-slice-gates.mjs
+```
+
+once those JSON files exist.
 
 ---
 
-### Phase D — Local full battery (pre-PR)
+## Phase D — Local full battery (before PR)
 
-**Docs / contract (always):**
+1. Docs/contract (always):
 
 ```bash
 node scripts/check-verification-manifest.mjs
@@ -170,252 +147,273 @@ node scripts/check-golden-seed.mjs
 node scripts/check-slice-gates.mjs --slice <slice>
 ```
 
-**Backend (`[foundation+]`, after Gradle tree + uncommented `backend-verify`):**
+2. Backend (after Gradle wrapper exists):
 
 ```bash
-./gradlew checkstyleMain checkstyleTest spotbugsMain dependencyCheckAnalyze \
-  test jacocoTestCoverageVerification build
+./gradlew checkstyleMain checkstyleTest spotbugsMain dependencyCheckAnalyze test jacocoTestCoverageVerification build
 ```
 
-**Frontend (`[foundation+]`, after `frontend/` tree + uncommented `frontend-verify`):**
+3. Frontend (after `frontend/` exists):
 
 ```bash
 cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm run build
 ```
 
-**Traceability phase `full` (once `@trace` tags exist in tests):**
+4. Traceability against tests (after `@trace` tags exist):
+
+```bash
+node scripts/check-traceability.mjs --slice <slice> --phase full --write
+node scripts/check-traceability.mjs --phase full --check-fresh
+```
+
+5. If review findings exist: copy `docs/qa/remediation-ledger.template.md` to
+   `openspec/changes/<slice>/evidence/remediation-ledger.md`, fill FIND
+   blocks, then:
+
+```bash
+node scripts/check-remediation-ledger.mjs --file openspec/changes/<slice>/evidence/remediation-ledger.md
+```
+
+6. Every closing matrix row needs `@trace <row-id>` in a test, or a written
+   handoff to a later slice. Missing IDs fail `--phase full`.
+7. If any command is red: stop. Do not open the PR.
+
+---
+
+## Phase E — Close, archive, handoff
+
+1. Confirm every checkbox in `openspec/changes/<slice>/tasks.md` is `[x]` and
+   each had a proving command.
+2. Confirm the slice-specific gate (Phase G below).
+3. Archive: `/opsx-archive <slice>`.
+4. Sync main specs if prompted: `/opsx-sync`.
+5. Confirm `docs/specs/<NN>_<Slice>_Spec.md` exists.
+6. Last edit: prepend a new ISO-8601 entry to `docs/current-state.md` that
+   names `<slice>`.
+7. Run:
+
+```bash
+node scripts/check-handoff-fresh.mjs --slice <slice>
+node scripts/check-slice-gates.mjs --slice <slice>
+```
+
+---
+
+## Phase F — PR, CI, merge
+
+1. Push: `git push -u origin HEAD`.
+2. Open PR. Fill `.github/pull_request_template.md`: slice name, matrix row
+   IDs, commands + decisive output, rollback note.
+3. CI always runs `docs-verify`:
+
+```bash
+node scripts/check-verification-manifest.mjs
+npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal
+npx --yes @fission-ai/openspec@1.7.0 validate --all --strict
+node scripts/check-doc-links.mjs
+node scripts/check-traceability.mjs --check-fresh
+node scripts/check-golden-seed.mjs
+node scripts/check-slice-gates.mjs
+```
+
+plus Mermaid render and gitleaks (CI only).
+
+4. After foundation uncomments jobs, CI also runs:
+
+```bash
+./gradlew checkstyleMain checkstyleTest spotbugsMain dependencyCheckAnalyze test jacocoTestCoverageVerification build
+cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm run test:e2e && npm run build
+```
+
+5. CodeRabbit comments are advisory. Do not treat them as merge approval.
+6. Non-author human approval if a second person exists. Solo: merge on green
+   CI + documented waiver.
+7. Merge only if Phases A–E all exited 0.
+
+---
+
+## Phase G — Slice-specific extra work
+
+### 1. `foundation-slice`
+
+1. Rows: FND-1..FND-8; OBS-AC1/7/8 via audit.
+2. Tasks 1.1–1.4: write `docs/specs/01_Foundation_Spec.md`; run Phase A
+   commands with `--slice foundation-slice`.
+3. Task 2.1: create Gradle wrapper (Java 21, Spring Boot, Flyway, OAuth2
+   resource server, Testcontainers, ArchUnit, pgvector JDBC).
+4. Task 2.2, **same commit as wrapper**: uncomment `backend-verify` in
+   `.github/workflows/ci.yml`. Then:
+
+```bash
+./gradlew checkstyleMain checkstyleTest spotbugsMain dependencyCheckAnalyze test jacocoTestCoverageVerification build
+```
+
+5. Tasks 2.3–2.6: package tree (`documents.pipeline`, `evaluation`,
+   `worker.runtime` — never `worker.pipeline` / `worker.eval`); `api`/`worker`
+   profiles; Compose (PostgreSQL 16 + pgvector, Keycloak, MinIO, two JVMs,
+   frontend).
+6. Task 2.7: React + TypeScript shell. **Same commit as
+   `frontend/package-lock.json`**: uncomment `frontend-verify`. Then:
+
+```bash
+cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm run build
+```
+
+7. Tasks 3.1–3.6: shared VOs. Prove compile:
+
+```bash
+./gradlew test
+```
+
+8. Tasks 4.1–4.10: nine ArchUnit walls **before** domain code. For each wall:
+   introduce an intentional violation, confirm `./gradlew test` fails, revert,
+   confirm green.
+9. Tasks 5–8: Flyway V1 + canary FK chain + deny rows; stubs fail-closed;
+   bootstrap API + in-transaction audit; OIDC login + workspace list.
+10. Tasks 9–10: Testcontainers + integration tests with `@trace FND-n`;
+    JaCoCo 70% aggregate / 90% policy/audit/search; Playwright journey #1
+    under `frontend/e2e/`.
+11. Slice gate: ArchUnit red-then-green proven; canary seeded and detectable;
+    audit UPDATE/DELETE rejected; audit in same transaction as mutation.
+12. Extra:
+
+```bash
+./gradlew test jacocoTestCoverageVerification
+npx --yes @redocly/cli@2.44.1 lint openapi/admin.yaml --extends=minimal
+```
+
+Confirm no stale `worker.pipeline` / `worker.eval` terms. Confirm no Kafka,
+Redis-as-correctness, Kubernetes, dedicated vector DB.
+
+### 2. `ingestion-slice`
+
+1. Blocked until foundation is merged.
+2. Rows: ING-AC1..ING-AC11.
+3. Phase A with `docs/spec-prompts/02_ingestion-slice.md` and
+   `--slice ingestion-slice`.
+4. Before merge, make `tools/benchmark/` runnable and run:
+
+```bash
+cd tools/benchmark
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+python generate_corpus.py --output ./corpus/
+python load_corpus.py --dsn "$BENCHMARK_DATABASE_URL" --corpus ./corpus/
+python run_benchmark.py --dsn "$BENCHMARK_DATABASE_URL" --seed ../../docs/eval/golden-seed.yaml
+```
+
+Pass: recall@8 ≥ 0.85 and p95 ≤ 1.0 s. Fill
+`docs/adr/019-pgvector-index-parameters.md`.
+
+5. Implement pipeline, async AV, worker jobs, delete-during-reindex (ING-AC7).
+6. Add golden-seed cases for new error surfaces; then:
+
+```bash
+node scripts/check-golden-seed.mjs
+```
+
+7. Slice gate: ADR-019 filled; ING-AC7 test green; Phase D battery green.
+
+### 3. `chat-slice`
+
+1. Blocked until foundation + ingestion merged.
+2. Rows closing here: SRCH-AC1, SRCH-AC2, SRCH-AC4, SRCH-AC5, CHAT-AC1,
+   CHAT-AC3, CHAT-AC4, CHAT-AC5, CHAT-AC6, CHAT-AC7.
+3. Do **not** close SRCH-AC3 or CHAT-AC2 here. Record handoff to
+   `evaluation-slice`.
+4. Phase A with `docs/spec-prompts/03_chat-slice.md` and `--slice chat-slice`.
+5. Implement search read path, `rag`, `chat`, SSE
+   (`token`/`citation`/`heartbeat`/`done`/`error`), fail-closed provider
+   (CHAT-AC5), refusal unit/integration tests.
+6. Slice gate: SSE contract tests green; CHAT-AC5 tests green; refusal path
+   green (golden-suite acceptance waits for evaluation).
+
+### 4. `admin-slice`
+
+1. Blocked until foundation merged. May run in parallel with ingestion/chat.
+2. Rows: ADM-AC1..ADM-AC6.
+3. Phase A with `docs/spec-prompts/04_admin-slice.md` and
+   `--slice admin-slice`.
+4. Implement full CRUD, four-eyes, deny-precedence, rate-limit fail-closed,
+   notifications.
+5. Slice gate: ADM-AC3 and ADM-AC6 tests green; rate-limit fail-closed test
+   green.
+
+### 5. `evaluation-slice`
+
+1. Blocked until chat + admin merged.
+2. Rows: EVAL-AC1..EVAL-AC5 plus **close** SRCH-AC3 and CHAT-AC2.
+3. Phase A with `docs/spec-prompts/05_evaluation-slice.md` and
+   `--slice evaluation-slice`.
+4. Eval runner must call the live RAG pipeline (not a parallel fake path).
+5. Manual (not CI): run the golden suite; write `docs/qa/eval-report.md`
+   (create that file on first run).
+6. Slice gate: negative-ACL, ranking-comparison, refusal cases pass;
+   refusal-that-got-an-answer is `fail` regardless of LLM-judge (EVAL-AC2);
+   synthetic >5 pp drop fires admin alert (EVAL-AC3).
+
+### 6. `hardening-slice`
+
+1. Blocked until chat + admin + evaluation merged.
+2. Rows: OBS-AC2..OBS-AC6, RET-DOC, RET-CHAT, RET-AUDIT.
+3. Phase A with `docs/spec-prompts/06_hardening-slice.md` and
+   `--slice hardening-slice`.
+4. Implement retention purge, content-minimized logging on `api` and
+   `worker`, NDJSON audit export, Playwright top-10 journeys from
+   `docs/qa/e2e-journeys.md`.
+5. Extra:
+
+```bash
+./gradlew check
+cd frontend && npm run test:e2e
+```
+
+6. Slice gate: RET-DOC / RET-CHAT / RET-AUDIT tests green; OBS-AC3 both
+   profiles; OBS-AC4 export round-trip; E2E top-10 green.
+
+---
+
+## After all six slices (once)
+
+1. Traceability all rows:
 
 ```bash
 node scripts/check-traceability.mjs --phase full --write
 node scripts/check-traceability.mjs --phase full --check-fresh
 ```
 
-Every matrix row closing in the slice needs ≥1 `@trace <row-id>` in tests, or an
-explicit recorded handoff to a later slice (plan §5 DoD item 2).
-
-**Review findings:** copy [remediation-ledger.template.md](./remediation-ledger.template.md)
-to `openspec/changes/<slice>/evidence/remediation-ledger.md`, fill FIND blocks,
-then:
+2. Confirm `docs/qa/eval-report.md` and filled
+   `docs/adr/019-pgvector-index-parameters.md` exist.
+3. Release battery:
 
 ```bash
-node scripts/check-remediation-ledger.mjs --file openspec/changes/<slice>/evidence/remediation-ledger.md
+./gradlew check dependencyCheckAnalyze
+cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm run test:e2e && npm audit --audit-level=high
+node scripts/check-traceability.mjs --phase full --check-fresh
+node scripts/check-doc-links.mjs
 ```
 
-**Shortcut:** `.cursor/commands/quality-gate.md` lists the docs-phase battery.
-
-Never claim green without running these commands locally.
-
----
-
-### Phase E — Handoff and archive
-
-1. All `tasks.md` checkboxes truthfully `[x]`.
-2. Slice-specific gate met (plan §5 gate table — see §4–§9 below).
-3. Archive OpenSpec change: `/opsx-archive <slice>` (or openspec-archive-change).
-4. Sync main specs if applicable (`/opsx-sync`).
-5. Confirm `docs/specs/<NN>_<Slice>_Spec.md` exists.
-6. **Last repo edit:** prepend slice entry to [current-state.md](../current-state.md).
+4. Global review; fix findings; re-run the same commands; CI green on the
+   release commit; deploy smoke; prepend `docs/current-state.md`.
+5. UAT bugs: add regression test `@trace BUG-x`; retrieval/answer bugs also
+   add a golden-seed case; then:
 
 ```bash
-node scripts/check-handoff-fresh.mjs --slice <slice>
-```
-
-Newest current-state entry must mention the slice and not predate the green-run
-timestamp (10-minute write-then-commit skew allowed).
-
----
-
-### Phase F — PR, CI, merge
-
-1. Push branch; open PR using [.github/pull_request_template.md](../../.github/pull_request_template.md).
-2. Fill: slice name, matrix row IDs, DoD checklist, verification commands +
-   decisive output, rollback note.
-3. Wait for CI:
-   - **`docs-verify`** — always (automatic).
-   - **`backend-verify`** / **`frontend-verify`** — after foundation enables them.
-4. CodeRabbit — **advisory only** (`.coderabbit.yaml`); not a merge substitute.
-5. Non-author human approval when available (NFR §7.1).
-6. Merge only when G4 criteria in [quality-gates.md §G4](../checklists/quality-gates.md#g4--per-slice-repeat-for-slices-16) hold.
-
----
-
-## 3. Automatic vs manual gates
-
-| Gate | Runs automatically | You must still |
-|------|-------------------|----------------|
-| OpenAPI lint, OpenSpec strict, doc links, golden-seed, manifest, Mermaid, gitleaks | CI `docs-verify` every PR | Run locally before push; fix reds |
-| Traceability freshness | CI `--check-fresh` | Regenerate with `--write`, **commit** report |
-| Red/green + handoff + ledger | CI `check-slice-gates.mjs` when evidence exists | Author JSON + current-state |
-| Checkstyle, SpotBugs, deps, `./gradlew test`, JaCoCo, build | CI `backend-verify` after uncomment | Enable job same commit as Gradle wrapper |
-| Frontend lint, tsc, coverage, E2E, build | CI `frontend-verify` after uncomment | Enable when `frontend/` lands |
-| Per-task verification | — | Before each OpenSpec `[x]` |
-| SAD §9.1 benchmark | — | Run `tools/benchmark/` before ingestion merge |
-| Golden-suite eval (G6) | — | Manual via `evaluation` module; **not** CI-scheduled (plan §4) |
-| Non-author PR approval | GitHub branch protection | Second reviewer or documented solo waiver |
-| SAST, Error Prone task, SBOM, Prettier, Ruff/mypy | **Not wired** (plan §6.2) | Add during foundation or track as known debt |
-
----
-
-## 4. Slice 1 — foundation
-
-**Status:** OpenSpec proposed; 69 tasks in [tasks.md](../../openspec/changes/foundation-slice/tasks.md); 0 done.
-
-**Matrix rows closing here:** FND-1..FND-8; OBS-AC1/7/8 via audit append-only.
-
-### Recommended PR sequence
-
-Split if review size grows; order matters inside the slice:
-
-1. Spec doc (tasks 1.1–1.4) + G2 commit.
-2. Gradle wrapper + **uncomment `backend-verify`** same commit (tasks 2.1–2.2).
-3. Package tree, profiles, Compose, frontend shell (2.3–2.7); uncomment
-   `frontend-verify` when `frontend/package.json` exists.
-4. Shared VOs (§3) then **nine ArchUnit walls first** (§4) — design D2.
-5. Flyway V1, entities, seed, canary chain (§5).
-6. Module stubs (§6), security + bootstrap API (§7), frontend integration (§8).
-7. Tests, JaCoCo, Playwright scaffold, red/green evidence, close (§9–§10).
-
-### Critical bootstrap actions
-
-**Task 2.1 — Gradle tree:** Java 21, Spring Boot, Flyway, OAuth2 resource server,
-Testcontainers, ArchUnit, pgvector JDBC.
-
-**Task 2.2 — CI activation (same commit as wrapper):** Uncomment `backend-verify`
-in `.github/workflows/ci.yml`. Job must pass before heavy domain code. Configure
-JaCoCo per [coverage-policy.md](./coverage-policy.md) (70% aggregate, 90%
-policy/audit/search).
-
-**Task 2.7 — Frontend tree:** React + TypeScript shell; uncomment
-`frontend-verify` in the commit that adds `frontend/package-lock.json`.
-
-**Tasks 4.1–4.10 — ArchUnit:** Nine walls per
-[design.md](../../openspec/changes/foundation-slice/design.md) D2. Prove each
-wall **red** on intentional violation at least once; CI `./gradlew test` blocks
-on violations thereafter.
-
-### Slice-specific gate (plan §5)
-
-- ArchUnit red/green demonstrated.
-- Canary seeded + detectable.
-- Audit append-only + same-transaction tests pass.
-
-### First commands
-
-```bash
-git checkout -b feat/foundation-slice
-# Agent: complete tasks 1.1–1.4 → docs/specs/01_Foundation_Spec.md
-npx --yes @fission-ai/openspec@1.7.0 validate --all --strict
-node scripts/check-traceability.mjs --slice foundation-slice --phase docs --write
-node scripts/check-traceability.mjs --check-fresh
-git add docs/qa/traceability-report.md docs/specs/01_Foundation_Spec.md
-git commit -m "docs(foundation): add implementation spec and traceability"
-# /opsx-apply foundation-slice — start task 2.1
+./gradlew check
+node scripts/check-traceability.mjs --phase full --check-fresh
+node scripts/check-golden-seed.mjs
 ```
 
 ---
 
-## 5. Slice 2 — ingestion
+## What CI runs vs what you run
 
-**Blocked on:** foundation merged.
-
-**Prerequisite before merge (mandatory):** [tools/benchmark/](../../tools/benchmark/README.md)
-runnable; SAD §9.1 pass (recall@8 ≥ 0.85, p95 ≤ 1.0 s); fill
-[ADR-019](../adr/019-pgvector-index-parameters.md).
-
-1. Phase A: `/opsx-propose ingestion-slice` + prompt 02; trace ING-AC1..AC11.
-2. Phase B: `documents` pipeline/mgmt, `worker.runtime`, object storage, AV async.
-3. Phase C–F: red/green evidence; golden-seed cases for new error surfaces;
-   slice gate = benchmark ADR + ING-AC7 delete-during-reindex test.
-
-Admin **not** required (soft dependency).
-
----
-
-## 6. Slice 3 — chat / RAG
-
-**Blocked on:** foundation + ingestion.
-
-**Rows:** SRCH-AC1/2/4/5, CHAT-AC1/3–7. **Defer** SRCH-AC3 and CHAT-AC2 evidence
-to evaluation slice (record handoff in spec if tests land early).
-
-1. Phase A: prompt 03 + OpenSpec change.
-2. Phase B: search read path, `rag`, `chat`, SSE (ADR-011), fail-closed provider
-   (CHAT-AC5), refusal tests (unit/integration — golden acceptance in slice 5).
-3. Slice gate: SSE conformance, CHAT-AC5 tests, deterministic refusal path green.
-
----
-
-## 7. Slice 4 — admin
-
-**Blocked on:** foundation. May parallel ingestion/chat.
-
-**Rows:** ADM-AC1..AC6.
-
-1. Phase A: prompt 04 + OpenSpec change.
-2. Phase B: full admin CRUD, four-eyes, deny-precedence, rate-limit fail-closed,
-   notifications.
-3. Slice gate: ADM-AC3/AC6 + rate-limit fail-closed tests.
-
----
-
-## 8. Slice 5 — evaluation
-
-**Blocked on:** chat + admin.
-
-**Rows:** EVAL-AC1..AC5; **closes** SRCH-AC3 and CHAT-AC2.
-
-1. Phase A: prompt 05 + OpenSpec change.
-2. Phase B: eval runner reuses live RAG pipeline; regression alerts (EVAL-AC3).
-3. **Manual:** run golden suite end-to-end; record results in `docs/qa/eval-report.md`
-   (create on first run — see G6 in [quality-gates.md](../checklists/quality-gates.md)).
-   Not CI-scheduled (plan §4).
-4. Slice gate: negative-ACL, ranking-comparison, refusal cases; EVAL-AC2 oracle
-   beats LLM-judge on refusal.
-
----
-
-## 9. Slice 6 — hardening
-
-**Blocked on:** chat, admin, evaluation.
-
-**Rows:** OBS-AC2–6, RET-DOC/CHAT/AUDIT.
-
-1. Phase A: prompt 06 + OpenSpec change.
-2. Phase B: retention purge, logging profiles (OBS-AC3), NDJSON export (OBS-AC4),
-   E2E top-10 per [e2e-journeys.md](./e2e-journeys.md).
-3. Close **G5** in [quality-gates.md](../checklists/quality-gates.md).
-
----
-
-## 10. After all slices (once)
-
-| Gate | Actions |
-|------|---------|
-| **G6** QA proof pack | Phase `full` traceability all green; eval-report; ADR-019 current; a11y in Playwright; manual test plan |
-| **G7** Release | `./gradlew check`, full frontend battery, global review, CI green on release commit, deploy smoke, current-state |
-| **G8** UAT | Per bug: `@trace BUG-x`, golden-seed regression if retrieval/answer, full battery green |
-
----
-
-## 11. Troubleshooting
-
-| Symptom | Likely cause | Fix |
-|---------|--------------|-----|
-| `traceability-report.md is stale` | Report not committed after `--write` | `node scripts/check-traceability.mjs --slice <slice> --write`, commit, re-run `--check-fresh` |
-| `check-slice-gates` fails on handoff | current-state not updated last or omits slice name | Prepend entry mentioning `<slice>` after green-run |
-| `backend-verify` missing on PR | Job still commented | Foundation task 2.2 — uncomment in Gradle wrapper commit |
-| Cannot self-approve PR | GitHub policy | Second reviewer, or temporary approval waiver + green CI ([branch-protection.md](./branch-protection.md)) |
-| Phase `full` traceability fails | Missing `@trace` on tests | Add tags or record explicit deferral in spec/handoff |
-| Ingestion blocked | Benchmark not run | Complete `tools/benchmark/` + ADR-019 before merge |
-
----
-
-## 12. Related documents
-
-- [quality-gates.md](../checklists/quality-gates.md) — G0–G8 exit criteria
-- [mvp-capability-plan.md](../mvp-capability-plan.md) — ownership matrix, DoD, slice DAG
-- [verification-manifest.json](./verification-manifest.json) — machine-readable gate list
-- [coverage-policy.md](./coverage-policy.md) — JaCoCo / Vitest floors
-- [branch-protection.md](./branch-protection.md) — human merge gate
-- [spec-prompts/README.md](../spec-prompts/README.md) — per-slice spec generation
-- [openspec/changes/foundation-slice/](../../openspec/changes/foundation-slice/) — active foundation change
+1. Every PR, automatic (`docs-verify`): OpenAPI lint, OpenSpec strict, doc
+   links, traceability freshness, golden-seed, slice-gates (when evidence
+   exists), Mermaid, gitleaks.
+2. After foundation uncomments jobs, automatic: Gradle
+   lint/test/coverage/build; frontend lint/tsc/coverage/e2e/build.
+3. You still run the same commands locally. Do not claim green from CI alone
+   if you did not run them.
+4. Never automatic: red/green JSON authoring, benchmark, golden-suite eval
+   run, SAST, SBOM, Error Prone as a real task, non-author approval.
