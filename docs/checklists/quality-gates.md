@@ -17,6 +17,8 @@ drift, do not silently patch either document.
 
 **Operator runbook:** step-by-step slice implementation through all gates —
 [docs/qa/slice-implementation-runbook.md](../qa/slice-implementation-runbook.md).
+Per-slice before/during/after plans:
+[docs/qa/slice-plans/](../qa/slice-plans/).
 
 Adapted from a generic template. Intentionally **not** ported because no BRD/NFR
 requirement demands them and some conflict with plan §4 exclusions: automated

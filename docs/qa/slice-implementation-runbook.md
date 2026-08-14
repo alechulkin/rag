@@ -25,10 +25,18 @@ or the capability plan, report the drift — do not silently patch those docs.
 4. Require PR approvals only if a second reviewer exists. Solo: skip required
    approvals; record waiver in `docs/current-state.md`.
 5. Never implement on `main`. One slice (or sub-PR) per branch.
+6. Per-slice plans live in `docs/qa/slice-plans/`. Copy `_template-*.md` when
+   **that** slice starts (after the previous slice is archived). Do not
+   pre-write slices 2–6. `/opsx-apply` is **During**, not Before. Foundation
+   trio: `01-foundation-before.md`, `01-foundation-during.md`,
+   `01-foundation-after.md`.
 
 ---
 
 ## Phase A — Spec (before any implementation code)
+
+Follow `docs/qa/slice-plans/<NN>-<name>-before.md` when it exists. No
+`/opsx-apply` in this phase.
 
 1. Create branch: `git checkout -b feat/<slice>`.
 2. Foundation only: skip propose. OpenSpec already at
@@ -62,6 +70,9 @@ node scripts/check-golden-seed.mjs
 ---
 
 ## Phase B — Implement (one OpenSpec task at a time)
+
+This is the `/opsx-apply` phase. Follow
+`docs/qa/slice-plans/<NN>-<name>-during.md` when it exists.
 
 1. Start apply: `/opsx-apply <slice>`.
 2. For each `- [ ]` in `openspec/changes/<slice>/tasks.md`:
@@ -181,6 +192,8 @@ node scripts/check-remediation-ledger.mjs --file openspec/changes/<slice>/eviden
 ---
 
 ## Phase E — Close, archive, handoff
+
+Follow `docs/qa/slice-plans/<NN>-<name>-after.md` when it exists.
 
 1. Confirm every checkbox in `openspec/changes/<slice>/tasks.md` is `[x]` and
    each had a proving command.
