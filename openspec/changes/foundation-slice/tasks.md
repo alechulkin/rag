@@ -10,7 +10,7 @@
 ## 2. Project Skeleton
 
 - [x] 2.1 Create Gradle build (Java 21, Spring Boot) with single module and dependency set (Flyway, Spring Security OAuth2 Resource Server, Testcontainers, ArchUnit, pgvector JDBC) (evidence: `evidence/task-2.1-gradle-build.md`; `./gradlew build` → BUILD SUCCESSFUL)
-- [ ] 2.2 Activate `.github/workflows/ci.yml` `backend-verify` immediately after the Gradle wrapper and required tasks exist; configure lint, dependency scan, test, JaCoCo coverage per `docs/qa/coverage-policy.md`, build, and evidence commands so this job passes before domain implementation starts
+- [x] 2.2 Activate `.github/workflows/ci.yml` `backend-verify` immediately after the Gradle wrapper and required tasks exist; configure lint, dependency scan, test, JaCoCo coverage per `docs/qa/coverage-policy.md`, build, and evidence commands so this job passes before domain implementation starts (evidence: `evidence/task-2.2-backend-ci.md`; CI + CodeQL green at `0c009df`)
 - [ ] 2.3 Scaffold package tree per Module_Boundaries §2: `documents.pipeline`, `evaluation`, `worker.runtime` (NOT `worker.pipeline` / `worker.eval`)
 - [ ] 2.4 Configure Spring profiles `api` and `worker` with profile-specific `@Configuration` and component scanning boundaries
 - [ ] 2.5 Add `application-api.yml` and `application-worker.yml` with PostgreSQL, Keycloak issuer, MinIO placeholders
