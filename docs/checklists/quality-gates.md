@@ -15,6 +15,9 @@ source-of-truth chain (AGENTS.md precedence) and to
 criterion here restates the plan §5 Definition of Done, the plan wins; report
 drift, do not silently patch either document.
 
+**Operator runbook:** step-by-step slice implementation through all gates —
+[docs/qa/slice-implementation-runbook.md](../qa/slice-implementation-runbook.md).
+
 Adapted from a generic template. Intentionally **not** ported because no BRD/NFR
 requirement demands them and some conflict with plan §4 exclusions: automated
 demo recordings + vision verification, trajectory-eval workflow, CI-scheduled

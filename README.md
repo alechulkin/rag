@@ -22,7 +22,8 @@ On conflict, report — do not silently choose. `docs/` wins over this README.
 
 ## Trusted loop (docs phase)
 
-See `docs/qa/verification-manifest.json` and `docs/checklists/quality-gates.md`.
+See `docs/qa/verification-manifest.json`, `docs/checklists/quality-gates.md`,
+and the slice implementation runbook `docs/qa/slice-implementation-runbook.md`.
 
 ```bash
 node scripts/check-verification-manifest.mjs
