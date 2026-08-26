@@ -10,7 +10,7 @@ Phases E–F plus the slice-specific gate. Last repo edit is
 5. Confirm `docs/specs/<NN>_<Slice>_Spec.md` exists.
 6. Last edit: prepend an ISO-8601 entry to `docs/current-state.md` that names
    `<slice>`.
-7. Run:
+7. Run (same as runbook Phase E):
 
 ```bash
 node scripts/check-handoff-fresh.mjs --slice <slice>

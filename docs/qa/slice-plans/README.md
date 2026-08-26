@@ -9,7 +9,9 @@ changes package layout, CI jobs, and schema; later plans would go stale.
 2. Archive the previous slice first (except foundation).
 3. Fill `<slice>` from the new OpenSpec change (`/opsx-propose` for slices 2–6).
 4. Commands and stop rules stay in `docs/qa/slice-implementation-runbook.md`.
-   These files **sequence** work; they do not replace `tasks.md`.
+   These files **sequence** work; they do not replace `tasks.md`. Traceability
+   `--write` is always **unsliced** so `--check-fresh` / CI match the
+   committed full report.
 
 ## Mapping
 

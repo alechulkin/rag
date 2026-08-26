@@ -50,5 +50,7 @@ node scripts/check-traceability.mjs --phase full --write
 node scripts/check-traceability.mjs --phase full --check-fresh
 ```
 
+Same freshness rule: unsliced `--write` only (matches CI).
+
 10. Fill slice-specific extra work from
     `docs/qa/slice-implementation-runbook.md` Phase G.

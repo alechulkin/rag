@@ -1,12 +1,12 @@
 # After — `foundation-slice`
 
 Phases E–F plus the foundation slice gate. Last repo edit is
-`docs/current-state.md`.
+`docs/current-state.md` (must name `foundation-slice` for handoff-fresh).
 
 1. Confirm every checkbox in
    `openspec/changes/foundation-slice/tasks.md` is `[x]` and each had a
    proving command.
-2. Slice gate:
+2. Slice gate (Phase G):
    - ArchUnit walls proven red then green.
    - Canary seeded and detectable.
    - Audit UPDATE/DELETE rejected; audit in the same transaction as mutation.
@@ -15,7 +15,7 @@ Phases E–F plus the foundation slice gate. Last repo edit is
 5. Confirm `docs/specs/01_Foundation_Spec.md` exists.
 6. Last edit: prepend an ISO-8601 entry to `docs/current-state.md` that names
    `foundation-slice`.
-7. Run:
+7. Run (same as runbook Phase E):
 
 ```bash
 node scripts/check-handoff-fresh.mjs --slice foundation-slice

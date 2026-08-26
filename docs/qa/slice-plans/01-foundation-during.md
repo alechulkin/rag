@@ -58,3 +58,5 @@ node scripts/check-slice-gates.mjs --slice foundation-slice
 node scripts/check-traceability.mjs --phase full --write
 node scripts/check-traceability.mjs --phase full --check-fresh
 ```
+
+Same freshness rule: unsliced `--write` only (matches CI).
