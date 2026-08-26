@@ -502,7 +502,7 @@ Rationale:
 Hard architectural rule:
 
 - The API process inserts job rows (`ingestion_jobs`, `eval_runs`) and returns immediately. The worker process polls/dequeues them. No synchronous call from an API request thread may trigger ingestion parsing, embedding, or evaluation execution.
-- This rule must be enforced by an ArchUnit test: no class in the `api` Spring profile may import classes from the `worker.pipeline` or `worker.eval` packages.
+- This rule must be enforced by an ArchUnit test: no class in the `api` Spring profile may import classes from the `documents.pipeline` or `evaluation` packages (Module_Boundaries §2 canonical names; supporting `worker.runtime` is also api-forbidden).
 
 ### 9.1 pgvector Index Choice and Parameters (resolved)
 

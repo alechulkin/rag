@@ -8,6 +8,7 @@ security:
   - bearerAuth: []
 tags:
   - name: Admin
+    description: Tenant, workspace, membership, and platform-admin operations.
 paths:
   /workspaces:
     get:

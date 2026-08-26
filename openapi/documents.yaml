@@ -8,6 +8,7 @@ security:
   - bearerAuth: []
 tags:
   - name: Documents
+    description: Document upload, metadata, and soft-delete.
 paths:
   /workspaces/{workspaceId}/documents:
     post:

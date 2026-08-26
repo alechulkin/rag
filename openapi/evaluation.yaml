@@ -8,6 +8,7 @@ security:
   - bearerAuth: []
 tags:
   - name: Evaluation
+    description: Golden-suite evaluation runs.
 paths:
   /workspaces/{workspaceId}/eval/suites/{suiteId}/runs:
     post:
