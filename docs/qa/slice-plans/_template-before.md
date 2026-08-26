@@ -14,7 +14,7 @@ Phase A only. No `/opsx-apply`. No implementation code. Stop on non-zero exit.
 
 ```bash
 npx --yes @fission-ai/openspec@1.7.0 validate --all --strict
-node scripts/check-traceability.mjs --slice <slice> --phase docs --write
+node scripts/check-traceability.mjs --phase docs --write
 node scripts/check-traceability.mjs --check-fresh
 node scripts/check-doc-links.mjs
 npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal

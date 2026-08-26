@@ -2,6 +2,17 @@
 
 Running log of what the agent last did in this repo. Newest entry first. See [.cursor/rules/common/current-state.md](../.cursor/rules/common/current-state.md) for the maintenance rule.
 
+## 2026-08-26T21:15:00+03:00
+
+- **Timestamp of last agent action:** 2026-08-26T21:15:00+03:00
+- **What was done by agent:**
+  - Aligned runbook + slice plans: traceability `--write` / `--check-fresh` unsliced (matches CI freshness)
+  - Made Module_Boundaries §6 drift pointer concrete in open questions below
+- **Current state:**
+  - Operator docs consistent on traceability commands; Related documents footer on runbook
+- **Next steps:** keep using unsliced `--phase docs|full --write` before `--check-fresh`
+- **Open questions / blockers:** Module_Boundaries §6 doc-hygiene still open — `docs/Solution_Architecture.md` §4.1 AV-on-API sequence; BA Analysis §7.3.d “ClamAV synchronously before ack”; PRD §01 §11 “worker pool model” still listed open. Related: SAD §9.2 ArchUnit text still says `worker.pipeline`/`worker.eval` (canonical Module_Boundaries §2: `documents.pipeline`/`evaluation`). Solo maintainer approval waiver if no second reviewer
+
 ## 2026-08-14T12:45:00+03:00
 
 - **Timestamp of last agent action:** 2026-08-14T12:45:00+03:00
@@ -11,7 +22,7 @@ Running log of what the agent last did in this repo. Newest entry first. See [.c
 - **Current state:**
   - Iterative slice cadence in place; slices 2–6 plans not pre-written
 - **Next steps:** execute `docs/qa/slice-plans/01-foundation-before.md` (spec doc 1.1–1.4), then During `/opsx-apply`
-- **Open questions / blockers:** cross-doc drift from Module_Boundaries §6 still unfixed; solo maintainer approval waiver if no second reviewer
+- **Open questions / blockers:** Module_Boundaries §6 doc-hygiene still open — `docs/Solution_Architecture.md` §4.1 AV-on-API sequence; BA Analysis §7.3.d “ClamAV synchronously before ack”; PRD §01 §11 “worker pool model” still listed open. Related: SAD §9.2 still references `worker.pipeline`/`worker.eval`. Solo maintainer approval waiver if no second reviewer
 
 ## 2026-08-14T12:26:00+03:00
 
@@ -21,7 +32,7 @@ Running log of what the agent last did in this repo. Newest entry first. See [.c
 - **Current state:**
   - Operator checklist is the numbered runbook; existing links from quality-gates / capability plan / README still valid
 - **Next steps:** follow Phase A for `foundation-slice` (tasks 1.1–1.4), then `/opsx-apply`
-- **Open questions / blockers:** cross-doc drift from Module_Boundaries §6 still unfixed; solo maintainer approval waiver if no second reviewer
+- **Open questions / blockers:** Module_Boundaries §6 doc-hygiene still open — `docs/Solution_Architecture.md` §4.1 AV-on-API sequence; BA Analysis §7.3.d “ClamAV synchronously before ack”; PRD §01 §11 “worker pool model” still listed open. Related: SAD §9.2 still references `worker.pipeline`/`worker.eval`. Solo maintainer approval waiver if no second reviewer
 
 ## 2026-08-14T12:15:00+03:00
 

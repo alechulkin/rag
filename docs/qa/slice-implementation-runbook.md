@@ -55,13 +55,17 @@ Follow `docs/qa/slice-plans/<NN>-<name>-before.md` when it exists. No
 
 ```bash
 npx --yes @fission-ai/openspec@1.7.0 validate --all --strict
-node scripts/check-traceability.mjs --slice <slice> --phase docs --write
+node scripts/check-traceability.mjs --phase docs --write
 node scripts/check-traceability.mjs --check-fresh
 node scripts/check-doc-links.mjs
 npx --yes @redocly/cli@2.44.1 lint openapi/*.yaml --extends=minimal
 node scripts/check-verification-manifest.mjs
 node scripts/check-golden-seed.mjs
 ```
+
+   Traceability write must be **unsliced**. CI and `--check-fresh` regenerate
+   the full report (all slices). A `--slice … --write` report is missing
+   other sections and fails the freshness gate.
 
 8. Commit `docs/qa/traceability-report.md` and the spec files. CI runs
    `--check-fresh` without `--write`; uncommitted report fails.
@@ -173,9 +177,12 @@ cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm 
 4. Traceability against tests (after `@trace` tags exist):
 
 ```bash
-node scripts/check-traceability.mjs --slice <slice> --phase full --write
+node scripts/check-traceability.mjs --phase full --write
 node scripts/check-traceability.mjs --phase full --check-fresh
 ```
+
+   Same rule as Phase A: do not pass `--slice` on `--write` when the next
+   step is unsliced `--check-fresh` (CI freshness gate).
 
 5. If review findings exist: copy `docs/qa/remediation-ledger.template.md` to
    `openspec/changes/<slice>/evidence/remediation-ledger.md`, fill FIND
@@ -251,7 +258,7 @@ cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm 
 
 1. Rows: FND-1..FND-8; OBS-AC1/7/8 via audit.
 2. Tasks 1.1–1.4: write `docs/specs/01_Foundation_Spec.md`; run Phase A
-   commands with `--slice foundation-slice`.
+   commands (unsliced `--phase docs --write`, then `--check-fresh`).
 3. Task 2.1: create Gradle wrapper (Java 21, Spring Boot, Flyway, OAuth2
    resource server, Testcontainers, ArchUnit, pgvector JDBC).
 4. Task 2.2, **same commit as wrapper**: uncomment `backend-verify` in
@@ -302,8 +309,8 @@ Redis-as-correctness, Kubernetes, dedicated vector DB.
 
 1. Blocked until foundation is merged.
 2. Rows: ING-AC1..ING-AC11.
-3. Phase A with `docs/spec-prompts/02_ingestion-slice.md` and
-   `--slice ingestion-slice`.
+3. Phase A with `docs/spec-prompts/02_ingestion-slice.md` (unsliced
+   `--phase docs --write`, then `--check-fresh`).
 4. Before merge, make `tools/benchmark/` runnable and run:
 
 ```bash
@@ -334,7 +341,8 @@ node scripts/check-golden-seed.mjs
    CHAT-AC3, CHAT-AC4, CHAT-AC5, CHAT-AC6, CHAT-AC7.
 3. Do **not** close SRCH-AC3 or CHAT-AC2 here. Record handoff to
    `evaluation-slice`.
-4. Phase A with `docs/spec-prompts/03_chat-slice.md` and `--slice chat-slice`.
+4. Phase A with `docs/spec-prompts/03_chat-slice.md` (unsliced
+   `--phase docs --write`, then `--check-fresh`).
 5. Implement search read path, `rag`, `chat`, SSE
    (`token`/`citation`/`heartbeat`/`done`/`error`), fail-closed provider
    (CHAT-AC5), refusal unit/integration tests.
@@ -345,8 +353,8 @@ node scripts/check-golden-seed.mjs
 
 1. Blocked until foundation merged. May run in parallel with ingestion/chat.
 2. Rows: ADM-AC1..ADM-AC6.
-3. Phase A with `docs/spec-prompts/04_admin-slice.md` and
-   `--slice admin-slice`.
+3. Phase A with `docs/spec-prompts/04_admin-slice.md` (unsliced
+   `--phase docs --write`, then `--check-fresh`).
 4. Implement full CRUD, four-eyes, deny-precedence, rate-limit fail-closed,
    notifications.
 5. Slice gate: ADM-AC3 and ADM-AC6 tests green; rate-limit fail-closed test
@@ -356,8 +364,8 @@ node scripts/check-golden-seed.mjs
 
 1. Blocked until chat + admin merged.
 2. Rows: EVAL-AC1..EVAL-AC5 plus **close** SRCH-AC3 and CHAT-AC2.
-3. Phase A with `docs/spec-prompts/05_evaluation-slice.md` and
-   `--slice evaluation-slice`.
+3. Phase A with `docs/spec-prompts/05_evaluation-slice.md` (unsliced
+   `--phase docs --write`, then `--check-fresh`).
 4. Eval runner must call the live RAG pipeline (not a parallel fake path).
 5. Manual (not CI): run the golden suite; write `docs/qa/eval-report.md`
    (create that file on first run).
@@ -369,8 +377,8 @@ node scripts/check-golden-seed.mjs
 
 1. Blocked until chat + admin + evaluation merged.
 2. Rows: OBS-AC2..OBS-AC6, RET-DOC, RET-CHAT, RET-AUDIT.
-3. Phase A with `docs/spec-prompts/06_hardening-slice.md` and
-   `--slice hardening-slice`.
+3. Phase A with `docs/spec-prompts/06_hardening-slice.md` (unsliced
+   `--phase docs --write`, then `--check-fresh`).
 4. Implement retention purge, content-minimized logging on `api` and
    `worker`, NDJSON audit export, Playwright top-10 journeys from
    `docs/qa/e2e-journeys.md`.
@@ -430,3 +438,11 @@ node scripts/check-golden-seed.mjs
    if you did not run them.
 4. Never automatic: red/green JSON authoring, benchmark, golden-suite eval
    run, SAST, SBOM, Error Prone as a real task, non-author approval.
+
+---
+
+## Related documents
+
+- [Quality gates checklist](../checklists/quality-gates.md)
+- [Verification manifest](verification-manifest.json)
+- [Per-slice before/during/after plans](slice-plans/)

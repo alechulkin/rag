@@ -46,7 +46,7 @@ cd frontend && npm run lint && npx tsc --noEmit && npm run test:coverage && npm 
 9. After `@trace` tags exist:
 
 ```bash
-node scripts/check-traceability.mjs --slice <slice> --phase full --write
+node scripts/check-traceability.mjs --phase full --write
 node scripts/check-traceability.mjs --phase full --check-fresh
 ```
 

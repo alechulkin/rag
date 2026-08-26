@@ -55,6 +55,6 @@ node scripts/check-slice-gates.mjs --slice foundation-slice
 9. After `@trace` tags exist:
 
 ```bash
-node scripts/check-traceability.mjs --slice foundation-slice --phase full --write
+node scripts/check-traceability.mjs --phase full --write
 node scripts/check-traceability.mjs --phase full --check-fresh
 ```
