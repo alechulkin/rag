@@ -89,7 +89,7 @@ jobs:
 
   dependency-check-data:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -123,7 +123,17 @@ jobs:
 
       - name: Warm missing Dependency-Check data
         if: steps.dependency-check-cache.outputs.cache-matched-key == ''
-        run: ./gradlew dependencyCheckUpdate --no-daemon
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          if timeout 14m ./gradlew dependencyCheckUpdate --no-daemon; then
+            exit 0
+          fi
+          ec=$?
+          if [ "$ec" -eq 124 ]; then
+            echo "::error::dependencyCheckUpdate timed out after 14m. Warm cache via workflow 'dependency-check-cache' (workflow_dispatch) or wait for nightly schedule."
+          fi
+          exit "$ec"
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 

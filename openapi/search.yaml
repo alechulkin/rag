@@ -8,6 +8,7 @@ security:
   - bearerAuth: []
 tags:
   - name: Search
+    description: Permission-aware hybrid search.
 paths:
   /workspaces/{workspaceId}/search:
     post:

@@ -26,7 +26,7 @@ repositories {
 }
 
 extra["commons-lang3.version"] = "3.20.0"
-extra["httpclient5.version"] = "5.6.2"
+extra["httpclient5.version"] = "5.6.4"
 extra["httpcore5.version"] = "5.4.3"
 extra["jackson-bom.version"] = "2.21.5"
 extra["log4j2.version"] = "2.25.5"
@@ -91,6 +91,8 @@ dependencyCheck {
     format = "ALL"
     outputDirectory = layout.buildDirectory.dir("reports/dependency-check").get().asFile
     nvd.apiKey = System.getenv("NVD_API_KEY") ?: ""
+    nvd.maxRetryCount = 5
+    nvd.validForHours = 24
     failBuildOnCVSS = 7.0f
     failBuildOnUnusedSuppressionRule = true
     suppressionFile = "config/dependency-check-suppressions.xml"

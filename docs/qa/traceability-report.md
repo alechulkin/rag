@@ -1,5 +1,5 @@
 # Traceability Report
-Generated: 2026-08-14T12:13:45.922Z
+Generated: 2026-08-26T19:02:41.524Z
 Phase: `docs`
 Source plan: [docs/mvp-capability-plan.md](../mvp-capability-plan.md) §1.
 ## foundation (`foundation-slice`)

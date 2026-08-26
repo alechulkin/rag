@@ -28,6 +28,9 @@ node scripts/check-verification-manifest.mjs
 node scripts/check-golden-seed.mjs
 ```
 
+Do **not** pass `--slice` on `--write`. CI/`--check-fresh` regenerate the
+full multi-slice report; a slice-filtered write fails freshness.
+
 5. Commit `docs/specs/01_Foundation_Spec.md` and
    `docs/qa/traceability-report.md`.
 6. If any command is red: stop. Do not start During.

@@ -8,6 +8,7 @@ security:
   - bearerAuth: []
 tags:
   - name: Chat
+    description: Conversation lifecycle, ask (SSE), and feedback.
 paths:
   /workspaces/{workspaceId}/conversations:
     post:
