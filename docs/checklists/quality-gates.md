@@ -231,9 +231,13 @@ against the archived delta specs (newest matching archive wins).
 
 `--check-fresh` never rewrites the report (CI must not `--write` before check).
 
-Tip: run traceability for one slice only:
+Tip: regenerate and verify the committed report (must be **unsliced** — CI
+`--check-fresh` compares the full multi-slice report):
 
 ```bash
-node scripts/check-traceability.mjs --slice foundation-slice --phase docs --write
-node scripts/check-traceability.mjs --slice foundation-slice --phase docs --check-fresh
+node scripts/check-traceability.mjs --phase docs --write
+node scripts/check-traceability.mjs --check-fresh
 ```
+
+`--slice` is for focused diagnosis only (e.g. `--stdout-only`). Do not commit
+a slice-scoped `--write` output; it fails the freshness gate.
