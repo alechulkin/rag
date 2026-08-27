@@ -146,8 +146,21 @@ jobs:
           set -euo pipefail
           snap=/tmp/dependency-check-data-snapshot
           mkdir -p "$snap"
-          rsync -a --delete ~/.gradle/dependency-check-data/ "$snap"/
-          rsync -a --delete ~/.gradle/dependency-check-data/ "$snap"/
+          # odc.update.lock can disappear mid-copy while H2 settles; rsync then
+          # exits 24 ("vanished"). Exclude locks and tolerate 24 on a second pass.
+          snapshot() {
+            local ec=0
+            rsync -a --delete \
+              --exclude 'odc.update.lock' \
+              --exclude '*.lock' \
+              ~/.gradle/dependency-check-data/ "$snap"/ || ec=$?
+            if [ "$ec" -eq 0 ] || [ "$ec" -eq 24 ]; then
+              return 0
+            fi
+            return "$ec"
+          }
+          snapshot
+          snapshot
 
       - name: Save warmed Dependency-Check data
         if: steps.dependency-check-cache.outputs.cache-matched-key == ''
