@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   warm-cache:
@@ -48,8 +49,29 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
+      - name: Snapshot Dependency-Check data (stable for caching)
+        run: |
+          set -euo pipefail
+          snap=/tmp/dependency-check-data-snapshot
+          mkdir -p "$snap"
+          # odc.update.lock can disappear mid-copy while H2 settles; rsync then
+          # exits 24 ("vanished"). Exclude locks and tolerate 24 on a second pass.
+          snapshot() {
+            local ec=0
+            rsync -a --delete \
+              --exclude 'odc.update.lock' \
+              --exclude '*.lock' \
+              ~/.gradle/dependency-check-data/ "$snap"/ || ec=$?
+            if [ "$ec" -eq 0 ] || [ "$ec" -eq 24 ]; then
+              return 0
+            fi
+            return "$ec"
+          }
+          snapshot
+          snapshot
+
       - name: Save refreshed Dependency-Check data
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: ~/.gradle/dependency-check-data
+          path: /tmp/dependency-check-data-snapshot
           key: dependency-check-${{ runner.os }}-12.2.2-${{ github.run_id }}
