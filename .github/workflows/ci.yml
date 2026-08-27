@@ -90,6 +90,9 @@ jobs:
   dependency-check-data:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -137,11 +140,20 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
+      - name: Snapshot Dependency-Check data (stable for caching)
+        if: steps.dependency-check-cache.outputs.cache-matched-key == ''
+        run: |
+          set -euo pipefail
+          snap=/tmp/dependency-check-data-snapshot
+          mkdir -p "$snap"
+          rsync -a --delete ~/.gradle/dependency-check-data/ "$snap"/
+          rsync -a --delete ~/.gradle/dependency-check-data/ "$snap"/
+
       - name: Save warmed Dependency-Check data
         if: steps.dependency-check-cache.outputs.cache-matched-key == ''
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: ~/.gradle/dependency-check-data
+          path: /tmp/dependency-check-data-snapshot
           key: dependency-check-${{ runner.os }}-12.2.2-${{ github.run_id }}
 
   backend-verify:
@@ -151,6 +163,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      actions: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -165,7 +178,7 @@ jobs:
         id: dependency-check-cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: ~/.gradle/dependency-check-data
+          path: /tmp/dependency-check-data-snapshot
           key: dependency-check-${{ runner.os }}-12.2.2-${{ github.run_id }}
           restore-keys: |
             dependency-check-${{ runner.os }}-12.2.2-
@@ -175,6 +188,12 @@ jobs:
         run: |
           echo "::error::Dependency-Check data cache is missing after the dependency-check-data prerequisite. Inspect its cache-save logs."
           exit 1
+
+      - name: Install warmed Dependency-Check data
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.gradle/dependency-check-data
+          rsync -a --delete /tmp/dependency-check-data-snapshot/ ~/.gradle/dependency-check-data/
 
       - name: Error Prone (JavaCompile)
         run: ./gradlew compileJava compileTestJava --no-daemon
