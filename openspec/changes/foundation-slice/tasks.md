@@ -11,22 +11,22 @@
 
 - [x] 2.1 Create Gradle build (Java 21, Spring Boot) with single module and dependency set (Flyway, Spring Security OAuth2 Resource Server, Testcontainers, ArchUnit, pgvector JDBC) (evidence: `evidence/task-2.1-gradle-build.md`; `./gradlew build` → BUILD SUCCESSFUL)
 - [x] 2.2 Activate `.github/workflows/ci.yml` `backend-verify` immediately after the Gradle wrapper and required tasks exist; configure lint, dependency scan, test, JaCoCo coverage per `docs/qa/coverage-policy.md`, build, and evidence commands so this job passes before domain implementation starts (evidence: `evidence/task-2.2-backend-ci.md`; CI + CodeQL green at `0c009df`)
-- [ ] 2.3 Scaffold package tree per Module_Boundaries §2: `documents.pipeline`, `evaluation`, `worker.runtime` (NOT `worker.pipeline` / `worker.eval`)
-- [ ] 2.4 Configure Spring profiles `api` and `worker` with profile-specific `@Configuration` and component scanning boundaries
-- [ ] 2.5 Add `application-api.yml` and `application-worker.yml` with PostgreSQL, Keycloak issuer, MinIO placeholders
-- [ ] 2.6 Create Docker Compose: PostgreSQL 16 + pgvector, Keycloak (realm import), MinIO, api service, worker service, frontend shell
-- [ ] 2.7 Scaffold React + TypeScript frontend shell with OIDC redirect login per Design_System.md
+- [x] 2.3 Scaffold package tree per Module_Boundaries §2: `documents.pipeline`, `evaluation`, `worker.runtime` (NOT `worker.pipeline` / `worker.eval`) (evidence: `evidence/task-2.3-2.7-skeleton.md`)
+- [x] 2.4 Configure Spring profiles `api` and `worker` with profile-specific `@Configuration` and component scanning boundaries (evidence: `evidence/task-2.3-2.7-skeleton.md`; `./gradlew test` → BUILD SUCCESSFUL)
+- [x] 2.5 Add `application-api.yml` and `application-worker.yml` with PostgreSQL, Keycloak issuer, MinIO placeholders (evidence: `evidence/task-2.3-2.7-skeleton.md`)
+- [x] 2.6 Create Docker Compose: PostgreSQL 16 + pgvector, Keycloak (realm import), MinIO, api service, worker service, frontend shell (evidence: `evidence/task-2.3-2.7-skeleton.md`; compose keys verified; Docker CLI absent on host)
+- [x] 2.7 Scaffold React + TypeScript frontend shell with OIDC redirect login per Design_System.md (evidence: `evidence/task-2.3-2.7-skeleton.md`; `frontend-verify` uncommented; lint/tsc/coverage/e2e/build green)
 
 
 
 ## 3. Shared Value Objects and Exceptions
 
-- [ ] 3.1 Implement `shared.model.AllowedFilterSet` (tenantId, workspaceId, allowedCollectionIds, explicitDocGrantIds, explicitDocDenyIds, workspaceClassification) with package-private constructor and factory in `policy.access` only (Shared_Abstractions §S01)
-- [ ] 3.2 Implement `shared.model.Scope`, `shared.model.ProviderDecision` value objects
-- [ ] 3.3 Implement `shared.model.AuditEvent` + `AuditPayload` marker interface for typed per-event-type payloads
-- [ ] 3.4 Implement `shared.model.RequestContext` (`@RequestScope`: tenantId, workspaceId, userId), api profile only
-- [ ] 3.5 Implement `shared.exception.DomainException` hierarchy
-- [ ] 3.6 Verify these VOs compile standalone before any ArchUnit wall test depends on them
+- [x] 3.1 Implement `shared.model.AllowedFilterSet` (tenantId, workspaceId, allowedCollectionIds, explicitDocGrantIds, explicitDocDenyIds, workspaceClassification) with package-private constructor and factory in `policy.access` only (Shared_Abstractions §S01) (private ctor + `AllowedFilterSetFactory`; ArchUnit wall 4.5 enforces call sites)
+- [x] 3.2 Implement `shared.model.Scope`, `shared.model.ProviderDecision` value objects
+- [x] 3.3 Implement `shared.model.AuditEvent` + `AuditPayload` marker interface for typed per-event-type payloads
+- [x] 3.4 Implement `shared.model.RequestContext` (`@RequestScope`: tenantId, workspaceId, userId), api profile only
+- [x] 3.5 Implement `shared.exception.DomainException` hierarchy
+- [x] 3.6 Verify these VOs compile standalone before any ArchUnit wall test depends on them (evidence: `./gradlew test jacocoTestCoverageVerification` → BUILD SUCCESSFUL)
 
 
 

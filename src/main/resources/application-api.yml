@@ -1,0 +1,27 @@
+# api profile — REST + OAuth2 resource server (ADR-001)
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: ${RAG_DB_URL:jdbc:postgresql://localhost:5432/rag}
+    username: ${RAG_DB_USER:rag}
+    password: ${RAG_DB_PASSWORD:rag}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${RAG_OIDC_ISSUER:http://localhost:8081/realms/rag}
+
+rag:
+  object-storage:
+    endpoint: ${RAG_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${RAG_MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${RAG_MINIO_SECRET_KEY:minioadmin}
+    bucket: ${RAG_MINIO_BUCKET:rag-documents}

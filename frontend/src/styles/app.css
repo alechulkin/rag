@@ -1,0 +1,59 @@
+.page {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-4);
+}
+
+.page-header {
+  margin-bottom: var(--space-6);
+}
+
+.eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.page h1 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-tight);
+}
+
+.lede,
+.meta {
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-secondary);
+}
+
+.error {
+  color: var(--color-danger);
+  margin-bottom: var(--space-4);
+}
+
+.button-primary,
+.button-secondary {
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid transparent;
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+}
+
+.button-primary {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.button-secondary {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.app-shell {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, var(--color-bg-elevated), transparent 12rem),
+    var(--color-bg-canvas);
+}
