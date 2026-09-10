@@ -1,0 +1,131 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: rag
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: rag
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d rag"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2.5
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8080
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./deploy/keycloak/rag-realm.json:/opt/keycloak/data/import/rag-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/rag-documents
+      "
+
+  api:
+    build: .
+    environment:
+      SPRING_PROFILES_ACTIVE: api
+      RAG_DB_URL: jdbc:postgresql://postgres:5432/rag
+      RAG_DB_USER: rag
+      RAG_DB_PASSWORD: rag
+      RAG_OIDC_ISSUER: http://keycloak:8080/realms/rag
+      RAG_MINIO_ENDPOINT: http://minio:9000
+      RAG_MINIO_ACCESS_KEY: minioadmin
+      RAG_MINIO_SECRET_KEY: minioadmin
+      RAG_MINIO_BUCKET: rag-documents
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  worker:
+    build: .
+    environment:
+      SPRING_PROFILES_ACTIVE: worker
+      RAG_DB_URL: jdbc:postgresql://postgres:5432/rag
+      RAG_DB_USER: rag
+      RAG_DB_PASSWORD: rag
+      RAG_MINIO_ENDPOINT: http://minio:9000
+      RAG_MINIO_ACCESS_KEY: minioadmin
+      RAG_MINIO_SECRET_KEY: minioadmin
+      RAG_MINIO_BUCKET: rag-documents
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_OIDC_AUTHORITY: http://localhost:8081/realms/rag
+        VITE_OIDC_CLIENT_ID: rag-spa
+        VITE_API_BASE_URL: http://localhost:8080
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  minio_data:

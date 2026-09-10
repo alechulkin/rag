@@ -19,3 +19,11 @@ out/
 # Local env
 .env
 .env.*
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/playwright/.cache/
