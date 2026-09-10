@@ -95,15 +95,15 @@ public final class AllowedFilterSet {
     }
 
     public Set<UUID> allowedCollectionIds() {
-        return allowedCollectionIds;
+        return Set.copyOf(allowedCollectionIds);
     }
 
     public Set<UUID> explicitDocGrantIds() {
-        return explicitDocGrantIds;
+        return Set.copyOf(explicitDocGrantIds);
     }
 
     public Set<UUID> explicitDocDenyIds() {
-        return explicitDocDenyIds;
+        return Set.copyOf(explicitDocDenyIds);
     }
 
     public Classification workspaceClassification() {
